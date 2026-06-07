@@ -300,6 +300,13 @@ The GUI should eventually call these instead of directly sending `/arm_controlle
 - Distinguish sim joint state and real joint state in the model.
 - Make Preview and Execute visually distinct.
 
+Initial implementation status:
+
+- The header now shows `World`, `Hardware`, `Homing`, `Mode`, `Authority`, backend, tool, contact, and E-stop.
+- `RobotState` has explicit fields for `world`, `hardware`, `homed`, and `control_source`.
+- Mock mode reports `World: SimulationOnly` and `Hardware: Mock`.
+- ROS2 mode reports `World: SimulationOnly` and `Hardware: ROS graph` until a future `/arm/system_state` source is connected.
+
 ### Milestone 2: Unified Workbench
 
 - Merge Teleop, Monitor, Waypoints, and Visualization status into one main workbench.
@@ -323,4 +330,3 @@ The GUI should eventually call these instead of directly sending `/arm_controlle
 - Add explicit Sim Preview / To Real controls.
 - Require hardware connected, homed, no faults, and GUI authority.
 - Route execution through a real control/planning action.
-

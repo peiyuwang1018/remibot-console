@@ -27,6 +27,9 @@ class MockBackend(ArmBackend):
         self.step_elapsed = 0.0
 
     def start(self) -> None:
+        with self.state.lock:
+            self.state.world = "SimulationOnly"
+            self.state.hardware = "Mock"
         self.state.set_backend(self.name, True)
         self.state.log("Mock backend connected")
         self.timer.start(int(1000 / DATA_HZ))
@@ -216,6 +219,7 @@ class MockBackend(ArmBackend):
                 self.state.log(f"Homing step complete: {in_progress[0]}")
                 if all(value == "done" for value in self.state.homing_steps.values()):
                     self.state.homing_active = False
+                    self.state.homed = True
                     self.state.status = "READY"
                     self.state.mode = "Position PID"
                     self.state.log("Homing sequence complete")

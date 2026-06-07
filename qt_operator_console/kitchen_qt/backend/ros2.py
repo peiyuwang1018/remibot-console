@@ -47,6 +47,9 @@ class Ros2Backend(ArmBackend):
             from trajectory_msgs.msg import JointTrajectoryPoint
         except ImportError:
             self.available = False
+            with self.state.lock:
+                self.state.world = "SimulationOnly"
+                self.state.hardware = "Disconnected"
             self.state.set_backend(self.name, False)
             self.state.log("rclpy unavailable; ROS2 backend running in disconnected placeholder mode", "WARN")
             self.state_changed.emit()
@@ -68,6 +71,9 @@ class Ros2Backend(ArmBackend):
         self.executor.add_node(self.node)
         self.executor_thread = Thread(target=self.executor.spin, daemon=True)
         self.executor_thread.start()
+        with self.state.lock:
+            self.state.world = "SimulationOnly"
+            self.state.hardware = "ROS graph"
         self.available = True
         self.state.set_backend(self.name, True)
         self.state.log("ROS2 backend started; GUI preview publishes /joint_states")

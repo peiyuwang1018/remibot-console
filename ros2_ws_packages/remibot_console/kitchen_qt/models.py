@@ -46,6 +46,9 @@ class RobotState:
         self.pose = PoseState()
         self.backend = "mock"
         self.connected = False
+        self.world = "SimulationOnly"
+        self.hardware = "Disconnected"
+        self.homed = False
         self.status = "READY"
         self.mode = "Position PID"
         self.contact = "No Contact"
@@ -98,6 +101,9 @@ class RobotState:
                 "pose": PoseState(list(self.pose.xyz), list(self.pose.rpy)),
                 "backend": self.backend,
                 "connected": self.connected,
+                "world": self.world,
+                "hardware": self.hardware,
+                "homed": self.homed,
                 "status": self.status,
                 "mode": self.mode,
                 "contact": self.contact,

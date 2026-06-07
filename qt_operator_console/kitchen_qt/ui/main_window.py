@@ -39,6 +39,9 @@ from .widgets.plot import MultiLinePlot
 STATUS_COLORS = {"READY": "#66c9a4", "HOMING": "#e8b955", "ESTOP": "#d66c75", "TEACHING": "#7ab2f0"}
 CONTACT_COLORS = {"No Contact": "#66c9a4", "Contact": "#e8b955", "Wedged": "#e0845d"}
 HOMING_COLORS = {"pending": "#8c99ad", "in_progress": "#e8b955", "done": "#66c9a4", "failed": "#d66c75"}
+WORLD_COLORS = {"SimulationOnly": "#7ab2f0", "HardwareConnected": "#e8b955", "HardwareLive": "#66c9a4", "HybridMirror": "#b58cff"}
+HARDWARE_COLORS = {"Disconnected": "#8c99ad", "Mock": "#7ab2f0", "ROS graph": "#e8b955", "Connected": "#66c9a4", "Fault": "#d66c75"}
+AUTHORITY_COLORS = {"GUI": "#7ab2f0", "Joystick": "#e8b955", "Planner": "#b58cff", "TeachingDrag": "#66c9a4", "Safety": "#d66c75"}
 
 
 class MainWindow(QMainWindow):
@@ -103,6 +106,10 @@ class MainWindow(QMainWindow):
         layout.setSpacing(12)
 
         self.status_label = self._pill("READY")
+        self.world_label = self._pill("World: SimulationOnly")
+        self.hardware_label = self._pill("Hardware: Disconnected")
+        self.homing_state_label = self._pill("Homing: pending")
+        self.authority_label = self._pill("Authority: GUI")
         self.backend_label = self._pill("mock disconnected")
         self.contact_label = self._pill("No Contact")
         self.mode_combo = QComboBox()
@@ -116,9 +123,12 @@ class MainWindow(QMainWindow):
         estop.clicked.connect(lambda: self.backend.set_estop(not self.state.snapshot()["estop"]))
 
         for text, widget in [
-            ("Status", self.status_label),
+            ("World", self.world_label),
+            ("Hardware", self.hardware_label),
+            ("Homing", self.homing_state_label),
             ("Backend", self.backend_label),
             ("Mode", self.mode_combo),
+            ("Authority", self.authority_label),
             ("Tool", self.tool_combo),
             ("Contact", self.contact_label),
         ]:
@@ -386,6 +396,15 @@ class MainWindow(QMainWindow):
         snap = self.state.snapshot()
         self.status_label.setText(snap["status"])
         self.status_label.setStyleSheet(f"color: {STATUS_COLORS.get(snap['status'], '#e6ebf4')};")
+        self.world_label.setText(f"World: {snap['world']}")
+        self.world_label.setStyleSheet(f"color: {WORLD_COLORS.get(snap['world'], '#e6ebf4')};")
+        self.hardware_label.setText(f"Hardware: {snap['hardware']}")
+        self.hardware_label.setStyleSheet(f"color: {HARDWARE_COLORS.get(snap['hardware'], '#e6ebf4')};")
+        homing_text = "homed" if snap["homed"] else ("homing" if snap["homing_active"] else "not homed")
+        self.homing_state_label.setText(f"Homing: {homing_text}")
+        self.homing_state_label.setStyleSheet(f"color: {'#66c9a4' if snap['homed'] else ('#e8b955' if snap['homing_active'] else '#8c99ad')};")
+        self.authority_label.setText(f"Authority: {snap['control_source']}")
+        self.authority_label.setStyleSheet(f"color: {AUTHORITY_COLORS.get(snap['control_source'], '#e6ebf4')};")
         self.backend_label.setText(f"{snap['backend']} {'connected' if snap['connected'] else 'disconnected'}")
         self.contact_label.setText(snap["contact"])
         self.contact_label.setStyleSheet(f"color: {CONTACT_COLORS.get(snap['contact'], '#e6ebf4')};")
