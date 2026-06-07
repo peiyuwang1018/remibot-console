@@ -312,6 +312,12 @@ Initial implementation status:
 - Merge Teleop, Monitor, Waypoints, and Visualization status into one main workbench.
 - Keep PID, diagnostics, tools, and logs as secondary panels.
 
+Initial implementation status:
+
+- Added a first-position `Workbench` tab.
+- The Workbench combines live joint telemetry, signal plot, control-source indicators, joint sliders, waypoint save/list/preview/execute, and teaching recording controls.
+- Detailed Homing, PID/tuning, tools, visualization notes, and logs remain as secondary tabs.
+
 ### Milestone 3: Teaching Mode
 
 - Add Teaching Drag workflow.

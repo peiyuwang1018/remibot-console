@@ -75,9 +75,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._build_top_bar())
 
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._monitor_tab(), "Monitor")
-        self.tabs.addTab(self._teleop_tab(), "Teleop")
-        self.tabs.addTab(self._waypoint_tab(), "Waypoints")
+        self.tabs.addTab(self._workbench_tab(), "Workbench")
         self.tabs.addTab(self._homing_tab(), "Homing")
         self.tabs.addTab(self._tuning_tab(), "Motors and Tuning")
         self.tabs.addTab(self._tools_tab(), "Tools")
@@ -144,6 +142,146 @@ class MainWindow(QMainWindow):
         label = QLabel(text)
         label.setObjectName("Pill")
         return label
+
+    def _workbench_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QHBoxLayout(page)
+
+        left, left_layout = self._panel("Live State")
+        left.setMinimumWidth(480)
+        self._build_joint_telemetry_panel(left_layout)
+        left_layout.addSpacing(8)
+        self._build_manual_operation_panel(left_layout)
+
+        center, center_layout = self._panel("Joint Command")
+        self._build_joint_command_panel(center_layout)
+
+        right, right_layout = self._panel("Waypoints And Teaching")
+        right.setMinimumWidth(360)
+        self._build_waypoint_panel(right_layout)
+
+        layout.addWidget(left, 0)
+        layout.addWidget(center, 1)
+        layout.addWidget(right, 0)
+        return page
+
+    def _build_joint_telemetry_panel(self, layout: QVBoxLayout) -> None:
+        self.joint_table = QTableWidget(len(JOINTS), 6)
+        self.joint_table.setHorizontalHeaderLabels(["Joint", "I (A)", "q (rad)", "dq (rad/s)", "Temp", "Fault"])
+        self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        for col, width in enumerate([56, 78, 86, 92, 70, 62]):
+            self.joint_table.setColumnWidth(col, width)
+        self.joint_table.verticalHeader().setVisible(False)
+        self.joint_table.setAlternatingRowColors(True)
+        layout.addWidget(self.joint_table)
+        self.pose_label = QLabel("xyz: --\nrpy: --")
+        self.pose_label.setObjectName("Pill")
+        layout.addWidget(self.pose_label)
+        self.signal_combo = QComboBox()
+        self.signal_combo.addItems(["Current", "Position", "Velocity"])
+        layout.addWidget(self.signal_combo)
+        self.signal_plot = MultiLinePlot()
+        self.signal_plot.setMinimumHeight(180)
+        layout.addWidget(self.signal_plot, 1)
+
+    def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:
+        layout.addWidget(QLabel("Control source"))
+        self.joystick_label = self._pill("Joystick: unknown")
+        self.control_source_label = self._pill("Active: GUI")
+        layout.addWidget(self.joystick_label)
+        layout.addWidget(self.control_source_label)
+        mode_row = QHBoxLayout()
+        self.cartesian_radio = QRadioButton("Cartesian")
+        self.joint_radio = QRadioButton("Joint")
+        self.cartesian_radio.setChecked(True)
+        mode_row.addWidget(self.cartesian_radio)
+        mode_row.addWidget(self.joint_radio)
+        layout.addLayout(mode_row)
+        speed_row = QHBoxLayout()
+        for speed in SPEED_LEVELS:
+            button = QRadioButton(speed)
+            button.setChecked(speed == "Slow")
+            speed_row.addWidget(button)
+        layout.addLayout(speed_row)
+        quick_row = QHBoxLayout()
+        for text, slot in [
+            ("Enter Teaching", self.backend.enter_teaching),
+            ("Exit Teaching", self.backend.exit_teaching),
+            ("Start Homing", self.backend.start_homing),
+        ]:
+            btn = QPushButton(text)
+            btn.clicked.connect(slot)
+            quick_row.addWidget(btn)
+        layout.addLayout(quick_row)
+
+    def _build_joint_command_panel(self, layout: QVBoxLayout) -> None:
+        self.manual_sliders: dict[str, QSlider] = {}
+        for joint in JOINTS:
+            row = QHBoxLayout()
+            label = QLabel(joint)
+            label.setFixedWidth(32)
+            row.addWidget(label)
+            slider = QSlider(Qt.Horizontal)
+            slider.setRange(-3140, 3140)
+            slider.sliderReleased.connect(self._preview_slider_pose)
+            self.manual_sliders[joint] = slider
+            row.addWidget(slider, 1)
+            layout.addLayout(row)
+        preview = QPushButton("Preview Sliders in RViz")
+        preview.clicked.connect(self._preview_slider_pose)
+        layout.addWidget(preview)
+        send_row = QHBoxLayout()
+        self.manual_joint = QComboBox()
+        self.manual_joint.addItems(JOINTS)
+        self.manual_target = QDoubleSpinBox()
+        self.manual_target.setRange(-3.14, 3.14)
+        self.manual_target.setDecimals(3)
+        self.manual_target.setSingleStep(0.01)
+        send = QPushButton("Send Target")
+        send.clicked.connect(self._send_manual_target)
+        send_row.addWidget(self.manual_joint)
+        send_row.addWidget(self.manual_target)
+        send_row.addWidget(send)
+        layout.addLayout(send_row)
+        layout.addStretch(1)
+
+    def _build_waypoint_panel(self, layout: QVBoxLayout) -> None:
+        self.wp_name = QLineEdit()
+        self.wp_name.setPlaceholderText("Waypoint name")
+        self.wp_desc = QLineEdit()
+        self.wp_desc.setPlaceholderText("Description")
+        save = QPushButton("Save Current Pose")
+        save.clicked.connect(self._save_waypoint)
+        layout.addWidget(self.wp_name)
+        layout.addWidget(self.wp_desc)
+        layout.addWidget(save)
+        self.waypoint_list = QListWidget()
+        layout.addWidget(self.waypoint_list, 1)
+        buttons = QHBoxLayout()
+        preview = QPushButton("Preview")
+        preview.clicked.connect(self._preview_selected_waypoint)
+        execute = QPushButton("Plan/Execute")
+        execute.clicked.connect(self._execute_selected_waypoint)
+        delete = QPushButton("Delete")
+        delete.clicked.connect(self._delete_selected_waypoint)
+        buttons.addWidget(preview)
+        buttons.addWidget(execute)
+        buttons.addWidget(delete)
+        layout.addLayout(buttons)
+        layout.addSpacing(8)
+        self.recording_label = self._pill("Inactive - 0 points")
+        toggle = QPushButton("Start/Stop Recording")
+        toggle.clicked.connect(self._toggle_recording)
+        save_rec = QPushButton("Save Recording")
+        save_rec.clicked.connect(self._save_recording)
+        clear_rec = QPushButton("Clear Recording")
+        clear_rec.clicked.connect(self._clear_recording)
+        layout.addWidget(self.recording_label)
+        rec_buttons = QHBoxLayout()
+        rec_buttons.addWidget(toggle)
+        rec_buttons.addWidget(save_rec)
+        rec_buttons.addWidget(clear_rec)
+        layout.addLayout(rec_buttons)
 
     def _monitor_tab(self) -> QWidget:
         page = QWidget()
