@@ -64,6 +64,8 @@ For a one-command launch after building:
 
 More details are in `docs/ros2_bringup_integration.md`.
 
+For the product-level state model, Sim/Real/Teaching separation, authority arbitration, and future UI consolidation plan, see `docs/operator_console_product_architecture.md`.
+
 ## Current Structure
 
 - `kitchen_arm_gui.py`: repository-level Qt launcher.
