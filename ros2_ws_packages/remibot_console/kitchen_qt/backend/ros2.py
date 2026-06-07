@@ -28,6 +28,7 @@ class Ros2Backend(ArmBackend):
         self.executor = None
         self.executor_thread: Thread | None = None
         self.joint_state_pub = None
+        self.trajectory_client = None
         self.preview_positions: list[float] | None = None
         self.preview_timer = QTimer(self)
         self.preview_timer.setInterval(100)
@@ -37,8 +38,12 @@ class Ros2Backend(ArmBackend):
     def start(self) -> None:
         try:
             import rclpy
+            from control_msgs.action import FollowJointTrajectory
+            from rclpy.action import ActionClient
             from rclpy.executors import MultiThreadedExecutor
+            from rclpy.duration import Duration
             from sensor_msgs.msg import JointState as RosJointState
+            from trajectory_msgs.msg import JointTrajectoryPoint
         except ImportError:
             self.available = False
             self.state.set_backend(self.name, False)
@@ -47,12 +52,16 @@ class Ros2Backend(ArmBackend):
             return
 
         self.rclpy = rclpy
+        self.Duration = Duration
+        self.FollowJointTrajectory = FollowJointTrajectory
+        self.JointTrajectoryPoint = JointTrajectoryPoint
         self.RosJointState = RosJointState
         if not rclpy.ok():
             rclpy.init(args=None)
             self._owns_rclpy = True
         self.node = rclpy.create_node("remibot_console_backend")
         self.joint_state_pub = self.node.create_publisher(RosJointState, "/joint_states", 10)
+        self.trajectory_client = ActionClient(self.node, FollowJointTrajectory, "/arm_controller/follow_joint_trajectory")
         self.executor = MultiThreadedExecutor()
         self.executor.add_node(self.node)
         self.executor_thread = Thread(target=self.executor.spin, daemon=True)
@@ -113,11 +122,44 @@ class Ros2Backend(ArmBackend):
             self.state_changed.emit()
             return
 
+        if self._send_preview_trajectory():
+            self.preview_timer.stop()
+            self.state.log("Preview trajectory sent to /arm_controller/follow_joint_trajectory")
+            self.state_changed.emit()
+            return
+
         self._publish_preview_joint_state()
         if not self.preview_timer.isActive():
             self.preview_timer.start()
-        self.state.log("Preview joint state streaming to /joint_states")
+        self.state.log("No trajectory controller found; preview joint state streaming to /joint_states", "WARN")
         self.state_changed.emit()
+
+    def _send_preview_trajectory(self) -> bool:
+        if self.preview_positions is None or self.trajectory_client is None:
+            return False
+        if not self.trajectory_client.wait_for_server(timeout_sec=0.1):
+            return False
+        goal = self.FollowJointTrajectory.Goal()
+        goal.trajectory.joint_names = [ROS_JOINT_NAMES[joint] for joint in JOINTS]
+        point = self.JointTrajectoryPoint()
+        point.positions = list(self.preview_positions)
+        point.velocities = [0.0] * len(JOINTS)
+        point.time_from_start = self.Duration(seconds=1.0).to_msg()
+        goal.trajectory.points = [point]
+        future = self.trajectory_client.send_goal_async(goal)
+        future.add_done_callback(self._preview_goal_response)
+        return True
+
+    def _preview_goal_response(self, future) -> None:
+        try:
+            goal_handle = future.result()
+        except Exception as exc:  # noqa: BLE001 - keep GUI alive across ROS errors
+            self.state.log(f"Preview trajectory failed: {exc}", "WARN")
+            self.state_changed.emit()
+            return
+        if not goal_handle.accepted:
+            self.state.log("Preview trajectory rejected by controller", "WARN")
+            self.state_changed.emit()
 
     def _publish_preview_joint_state(self) -> None:
         if (

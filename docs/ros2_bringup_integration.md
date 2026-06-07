@@ -161,7 +161,8 @@ ros2 launch remibot_bringup kitchen_arm_system.launch.py \
 2. Open the GUI `Teleop` tab.
 3. Move the joint sliders.
 4. Click `Preview Sliders in RViz`.
-5. RViz should refresh the robot pose through `/joint_states`.
+5. If `/arm_controller/follow_joint_trajectory` is available, the GUI sends a short preview trajectory to the simulated controller. The controller then owns `/joint_states`, so RViz should settle at the target pose without flickering.
+6. If no trajectory controller is available, the GUI falls back to publishing preview `/joint_states` directly.
 
 This preview path is for simulation and planning only. It is not the final hardware command path.
 
