@@ -177,6 +177,12 @@ class MainWindow(QMainWindow):
             button = QRadioButton(speed)
             button.setChecked(speed == "Slow")
             left_layout.addWidget(button)
+        left_layout.addSpacing(10)
+        left_layout.addWidget(QLabel("Control source"))
+        self.joystick_label = self._pill("Joystick: unknown")
+        self.control_source_label = self._pill("Active: GUI")
+        left_layout.addWidget(self.joystick_label)
+        left_layout.addWidget(self.control_source_label)
         left_layout.addStretch(1)
         for text, slot in [
             ("Enter Teaching", self.backend.enter_teaching),
@@ -250,13 +256,17 @@ class MainWindow(QMainWindow):
         self.waypoint_list = QListWidget()
         right_layout.addWidget(self.waypoint_list, 1)
         buttons = QHBoxLayout()
-        go = QPushButton("Go")
-        go.setFixedWidth(130)
-        go.clicked.connect(self._go_selected_waypoint)
+        preview = QPushButton("Preview")
+        preview.setFixedWidth(130)
+        preview.clicked.connect(self._preview_selected_waypoint)
+        execute = QPushButton("Plan/Execute")
+        execute.setFixedWidth(130)
+        execute.clicked.connect(self._execute_selected_waypoint)
         delete = QPushButton("Delete")
         delete.setFixedWidth(130)
         delete.clicked.connect(self._delete_selected_waypoint)
-        buttons.addWidget(go)
+        buttons.addWidget(preview)
+        buttons.addWidget(execute)
         buttons.addWidget(delete)
         buttons.addStretch(1)
         right_layout.addLayout(buttons)
@@ -379,6 +389,11 @@ class MainWindow(QMainWindow):
         self.backend_label.setText(f"{snap['backend']} {'connected' if snap['connected'] else 'disconnected'}")
         self.contact_label.setText(snap["contact"])
         self.contact_label.setStyleSheet(f"color: {CONTACT_COLORS.get(snap['contact'], '#e6ebf4')};")
+        joystick_text = "Joystick: active" if snap["joystick_active"] else ("Joystick: connected" if snap["joystick_connected"] else "Joystick: not connected")
+        self.joystick_label.setText(joystick_text)
+        self.joystick_label.setStyleSheet(f"color: {'#66c9a4' if snap['joystick_connected'] else '#8c99ad'};")
+        self.control_source_label.setText(f"Active: {snap['control_source']}")
+        self.control_source_label.setStyleSheet(f"color: {'#e8b955' if snap['control_source'] == 'Joystick' else '#7ab2f0'};")
         self._set_combo_silent(self.mode_combo, snap["mode"])
         self._set_combo_silent(self.tool_combo, snap["tool"])
 
@@ -478,14 +493,29 @@ class MainWindow(QMainWindow):
         item = self.waypoint_list.currentItem()
         return item.text().split("  ")[0] if item else ""
 
-    def _go_selected_waypoint(self) -> None:
+    def _selected_waypoint_targets(self) -> dict[str, float]:
         name = self._selected_waypoint_name()
         waypoint = self.state.snapshot()["waypoints"].get(name)
         if not waypoint:
+            return {}
+        return {joint: float(target) for joint, target in zip(JOINTS, waypoint["q"])}
+
+    def _preview_selected_waypoint(self) -> None:
+        name = self._selected_waypoint_name()
+        targets = self._selected_waypoint_targets()
+        if not targets:
             return
-        for joint, target in zip(JOINTS, waypoint["q"]):
-            self.backend.send_joint_target(joint, float(target))
-        self.state.log(f"Waypoint command sent: {name}")
+        self.backend.preview_joint_targets(targets)
+        self.state.log(f"Waypoint preview sent: {name}")
+        self.refresh()
+
+    def _execute_selected_waypoint(self) -> None:
+        name = self._selected_waypoint_name()
+        targets = self._selected_waypoint_targets()
+        if not targets:
+            return
+        self.backend.execute_joint_targets(targets)
+        self.state.log(f"Waypoint plan/execute sent: {name}")
         self.refresh()
 
     def _delete_selected_waypoint(self) -> None:

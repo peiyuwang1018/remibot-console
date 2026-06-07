@@ -54,6 +54,10 @@ class ArmBackend(QObject):
         raise NotImplementedError
 
     @abstractmethod
+    def execute_joint_targets(self, targets_rad: dict[str, float]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def write_pid(self, joint: str, kp: float, ki: float, kd: float) -> dict[str, Any]:
         raise NotImplementedError
 

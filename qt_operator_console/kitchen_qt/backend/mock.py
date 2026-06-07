@@ -105,8 +105,13 @@ class MockBackend(ArmBackend):
             for joint, target in targets_rad.items():
                 if joint in self.state.joints:
                     self.state.joints[joint].position = target
+            self.state.control_source = "GUI"
         self.state.log("Mock preview pose updated from GUI sliders")
         self.state_changed.emit()
+
+    def execute_joint_targets(self, targets_rad: dict[str, float]) -> None:
+        self.preview_joint_targets(targets_rad)
+        self.state.log("Mock plan/execute completed")
 
     def write_pid(self, joint: str, kp: float, ki: float, kd: float) -> dict[str, Any]:
         entry = {

@@ -166,6 +166,25 @@ ros2 launch remibot_bringup kitchen_arm_system.launch.py \
 
 This preview path is for simulation and planning only. It is not the final hardware command path.
 
+## Control Source And Waypoints
+
+The Teleop tab shows two operator-state indicators:
+
+- `Joystick`: whether `/joy` messages have been seen, and whether the controller is currently active.
+- `Active`: whether the last active source is `GUI` or `Joystick`.
+
+This is the first UI guard against accidental source conflicts. The next safety step is to route both GUI and joystick through a shared mode/arbitration node before enabling real hardware motion.
+
+Waypoint workflow:
+
+1. Use the GUI sliders to reach a pose in RViz.
+2. Click `Preview Sliders in RViz`.
+3. Save the current pose in the Waypoints tab.
+4. Select a saved waypoint and click `Preview` to return the RViz/simulated arm to that pose.
+5. Select a saved waypoint and click `Plan/Execute` to send a trajectory to the controller.
+
+Today `Preview` and `Plan/Execute` both use `/arm_controller/follow_joint_trajectory` when available. They are separated in the UI so the backend can later make `Preview` simulation-only and `Plan/Execute` mode-gated for real hardware.
+
 Run simulation/visualization without hardware bridge:
 
 ```bash

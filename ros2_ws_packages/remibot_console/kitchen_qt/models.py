@@ -49,6 +49,9 @@ class RobotState:
         self.status = "READY"
         self.mode = "Position PID"
         self.contact = "No Contact"
+        self.joystick_connected = False
+        self.joystick_active = False
+        self.control_source = "GUI"
         self.estop = False
         self.tool = "Spatula"
         self.homing_active = False
@@ -98,6 +101,9 @@ class RobotState:
                 "status": self.status,
                 "mode": self.mode,
                 "contact": self.contact,
+                "joystick_connected": self.joystick_connected,
+                "joystick_active": self.joystick_active,
+                "control_source": self.control_source,
                 "estop": self.estop,
                 "tool": self.tool,
                 "homing_active": self.homing_active,
