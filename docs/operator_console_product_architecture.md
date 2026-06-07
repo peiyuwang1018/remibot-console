@@ -325,6 +325,14 @@ Initial implementation status:
 - Mirror real pose to RViz.
 - Save source metadata with each waypoint.
 
+Initial implementation status:
+
+- Workbench now exposes a Teaching Drag section.
+- ROS2 backend can enter/exit teaching state locally while forwarding mode requests as TODO logs until `/mode_request` is implemented.
+- ROS2 backend records incoming `/joint_states` while teaching and recording are active.
+- Recorded points include timestamp, source, joint positions, and joint velocities.
+- Data source is visible in the Workbench as `Data: sim`, `Data: ros_joint_state`, or `Data: real_teaching`.
+
 ### Milestone 4: Gravity Compensation Workflow
 
 - Add gravity compensation transition panel.

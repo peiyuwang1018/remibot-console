@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from threading import Thread
 from typing import Any
+from datetime import datetime
 
 from PySide6.QtCore import QTimer
 
@@ -66,6 +67,7 @@ class Ros2Backend(ArmBackend):
         self.node = rclpy.create_node("remibot_console_backend")
         self.joint_state_pub = self.node.create_publisher(RosJointState, "/joint_states", 10)
         self.joy_sub = self.node.create_subscription(Joy, "/joy", self._joy_callback, 10)
+        self.joint_state_sub = self.node.create_subscription(RosJointState, "/joint_states", self._joint_state_callback, 10)
         self.trajectory_client = ActionClient(self.node, FollowJointTrajectory, "/arm_controller/follow_joint_trajectory")
         self.executor = MultiThreadedExecutor()
         self.executor.add_node(self.node)
@@ -102,13 +104,32 @@ class Ros2Backend(ArmBackend):
         self._todo("call /homing/start")
 
     def enter_teaching(self) -> None:
+        with self.state.lock:
+            self.state.teaching_active = True
+            self.state.mode = "Teaching"
+            self.state.status = "TEACHING"
+            self.state.control_source = "TeachingDrag"
+            self.state.data_source = "real_teaching"
         self.request_mode("Teaching")
+        self.state_changed.emit()
 
     def exit_teaching(self) -> None:
+        with self.state.lock:
+            self.state.teaching_active = False
+            self.state.recording = False
+            self.state.mode = "Position PID"
+            self.state.status = "READY"
+            self.state.control_source = "GUI"
         self.request_mode("Position PID")
+        self.state_changed.emit()
 
     def set_recording(self, enabled: bool) -> None:
-        self._todo(f"recording={enabled}")
+        with self.state.lock:
+            self.state.recording = enabled
+            if enabled:
+                self.state.recorded_points.clear()
+        self.state.log("Teaching recording started" if enabled else "Teaching recording stopped")
+        self.state_changed.emit()
 
     def send_joint_target(self, joint: str, target_rad: float) -> None:
         self.preview_joint_targets({joint: target_rad})
@@ -143,6 +164,15 @@ class Ros2Backend(ArmBackend):
             self.state_changed.emit()
             return
 
+        publisher_count = self.node.count_publishers("/joint_states") if self.node is not None else 0
+        if publisher_count > 1:
+            self.preview_timer.stop()
+            self.state.log(
+                f"No trajectory controller found and {publisher_count - 1} external /joint_states publisher(s) exist; direct preview blocked to avoid flicker",
+                "WARN",
+            )
+            self.state_changed.emit()
+            return
         self._publish_preview_joint_state()
         if not self.preview_timer.isActive():
             self.preview_timer.start()
@@ -184,6 +214,33 @@ class Ros2Backend(ArmBackend):
             if active:
                 self.state.control_source = "Joystick"
         self.state_changed.emit()
+
+    def _joint_state_callback(self, msg) -> None:
+        updated = False
+        with self.state.lock:
+            for ui_joint, ros_joint in ROS_JOINT_NAMES.items():
+                if ros_joint not in msg.name:
+                    continue
+                idx = msg.name.index(ros_joint)
+                position = msg.position[idx] if len(msg.position) > idx else self.state.joints[ui_joint].position
+                velocity = msg.velocity[idx] if len(msg.velocity) > idx else 0.0
+                old = self.state.joints[ui_joint]
+                self.state.set_joint(
+                    ui_joint,
+                    JointState(old.current, float(position), float(velocity), old.temperature, old.voltage, old.fault),
+                )
+                updated = True
+            if updated:
+                self.state.data_source = "real_teaching" if self.state.teaching_active else "ros_joint_state"
+                if self.state.teaching_active and self.state.recording:
+                    self.state.recorded_points.append({
+                        "time": datetime.now().isoformat(timespec="milliseconds"),
+                        "source": self.state.data_source,
+                        "q": [self.state.joints[j].position for j in JOINTS],
+                        "velocity": [self.state.joints[j].velocity for j in JOINTS],
+                    })
+        if updated:
+            self.state_changed.emit()
 
     def _publish_preview_joint_state(self) -> None:
         if (

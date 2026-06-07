@@ -193,8 +193,17 @@ ros2 launch remibot_bringup kitchen_arm_system.launch.py \
   start_joint4_mapper:=false
 ```
 
+By default, `joy_arm_control.py` is not started from the ROS2 launch because it continuously sends trajectory goals and can compete with GUI waypoint preview. Enable it only when testing joystick authority:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py \
+  start_joy_control:=true
+```
+
 Run full system:
 
 ```bash
 ~/kitchen_arm_ws/start_remibot_system.sh
 ```
+
+The full-system wrapper starts `joy_arm_control.py` explicitly for hardware/joystick sessions. For GUI-only simulation preview, prefer the launch command above with `start_joy_control` left at its default `false`.

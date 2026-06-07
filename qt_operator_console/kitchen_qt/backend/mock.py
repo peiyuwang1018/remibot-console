@@ -30,6 +30,7 @@ class MockBackend(ArmBackend):
         with self.state.lock:
             self.state.world = "SimulationOnly"
             self.state.hardware = "Mock"
+            self.state.data_source = "sim"
         self.state.set_backend(self.name, True)
         self.state.log("Mock backend connected")
         self.timer.start(int(1000 / DATA_HZ))
@@ -76,6 +77,8 @@ class MockBackend(ArmBackend):
             self.state.teaching_active = True
             self.state.mode = "Teaching"
             self.state.status = "TEACHING"
+            self.state.control_source = "TeachingDrag"
+            self.state.data_source = "sim_teaching"
         self.state.log("Teaching mode entered")
         self.state_changed.emit()
 
@@ -85,6 +88,8 @@ class MockBackend(ArmBackend):
             self.state.recording = False
             self.state.mode = "Position PID"
             self.state.status = "READY"
+            self.state.control_source = "GUI"
+            self.state.data_source = "sim"
         self.state.log("Teaching mode exited")
         self.state_changed.emit()
 
@@ -109,6 +114,7 @@ class MockBackend(ArmBackend):
                 if joint in self.state.joints:
                     self.state.joints[joint].position = target
             self.state.control_source = "GUI"
+            self.state.data_source = "operator"
         self.state.log("Mock preview pose updated from GUI sliders")
         self.state_changed.emit()
 

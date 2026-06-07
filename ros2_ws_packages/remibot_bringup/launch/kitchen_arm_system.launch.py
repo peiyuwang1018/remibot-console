@@ -122,7 +122,7 @@ def generate_launch_description():
             DeclareLaunchArgument("start_candle", default_value="true"),
             DeclareLaunchArgument("start_joy", default_value="true"),
             DeclareLaunchArgument("start_joint4_mapper", default_value="true"),
-            DeclareLaunchArgument("start_joy_control", default_value="true"),
+            DeclareLaunchArgument("start_joy_control", default_value="false"),
             DeclareLaunchArgument("start_scene", default_value="true"),
             DeclareLaunchArgument("start_gui", default_value="true"),
             OpaqueFunction(function=_system_actions),

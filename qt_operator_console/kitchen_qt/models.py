@@ -55,6 +55,7 @@ class RobotState:
         self.joystick_connected = False
         self.joystick_active = False
         self.control_source = "GUI"
+        self.data_source = "sim"
         self.estop = False
         self.tool = "Spatula"
         self.homing_active = False
@@ -110,6 +111,7 @@ class RobotState:
                 "joystick_connected": self.joystick_connected,
                 "joystick_active": self.joystick_active,
                 "control_source": self.control_source,
+                "data_source": self.data_source,
                 "estop": self.estop,
                 "tool": self.tool,
                 "homing_active": self.homing_active,

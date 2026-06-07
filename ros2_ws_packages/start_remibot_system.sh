@@ -14,4 +14,5 @@ fi
 
 ros2 launch remibot_bringup kitchen_arm_system.launch.py \
   kitchen_ws:="${KITCHEN_WS}" \
-  motor_ws:="${MOTOR_WS}"
+  motor_ws:="${MOTOR_WS}" \
+  start_joy_control:=true
