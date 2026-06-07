@@ -1,0 +1,180 @@
+# ROS2 Bringup Integration
+
+## Recommended Direction
+
+The Qt operator console should become a normal Python ROS2 package inside:
+
+```text
+/home/peiyu/kitchen_arm_ws/src/remibot_console
+```
+
+RViz, MoveIt, robot drivers, joystick control, scene loading, and the GUI should be launched by one bringup layer. The GUI should not privately start RViz or MoveIt, because those processes depend on the same ROS2 graph, controller manager, robot description, and hardware workspace.
+
+## Package Split
+
+Keep these responsibilities separate:
+
+- `kitchen_arm_moveit_config`: robot description, MoveIt config, RViz config, MoveIt launch files.
+- `kitchen_arm_bringup` or `remibot_bringup`: one-shot system launch for MoveIt, RViz, CANdle, joystick, scene, and GUI.
+- `remibot_console`: Qt GUI plus ROS2 backend adapter.
+- Existing controller or driver packages: CANdle and motor interfaces.
+
+The current loose scripts in `/home/peiyu/kitchen_arm_ws/scripts` should eventually move into a Python ROS2 package as console entry points:
+
+- `joy_arm_control`
+- `joint4_motor_mapper`
+- `kitchen_scene`
+
+## Launch Shape
+
+The first useful bringup should mirror the existing `start_kitchen_arm.sh` order:
+
+1. Launch `kitchen_arm_moveit_config demo.launch.py`.
+2. Start `candle_ros2 candle_container`.
+3. Start `joy joy_node`.
+4. Start `joint4_motor_mapper`.
+5. Start `joy_arm_control`.
+6. Start `kitchen_scene`.
+7. Start the Qt operator console.
+
+For development, a tmux script is still practical because it keeps logs visible in separate panes. For long-term ROS2 packaging, use a Python launch file with `IncludeLaunchDescription`, `Node`, and `ExecuteProcess`.
+
+## RViz Linkage
+
+RViz follows ROS2 state. The console should not manipulate RViz internals.
+
+Required graph:
+
+```text
+/joint_states
+robot_description
+/tf and /tf_static
+/planning_scene or monitored_planning_scene
+/target_marker
+/stir_trail
+```
+
+The GUI should integrate through backend calls:
+
+- subscribe `/joint_states` for telemetry
+- call `/mode_request`
+- call `/homing/start`
+- publish or action-send joint targets through the control layer
+- call `/motor_controller/set_pid`
+- use actions for step tests, waypoint execution, and tool identification
+
+## Immediate Next Step
+
+Implemented v0.1:
+
+- `remibot_console` was added as a ROS2 Python package.
+- `remibot_bringup` was added as a ROS2 Python package.
+- `/home/peiyu/kitchen_arm_ws/start_remibot_system.sh` was added as a one-command wrapper.
+
+The source templates are kept in this repository under:
+
+```text
+ros2_ws_packages/remibot_console
+ros2_ws_packages/remibot_bringup
+ros2_ws_packages/start_remibot_system.sh
+```
+
+They have also been synchronized into:
+
+```text
+/home/peiyu/kitchen_arm_ws/src/remibot_console
+/home/peiyu/kitchen_arm_ws/src/remibot_bringup
+/home/peiyu/kitchen_arm_ws/start_remibot_system.sh
+```
+
+After building the workspace, the GUI can be launched as:
+
+```bash
+ros2 run remibot_console kitchen_arm_gui
+```
+
+The system bringup entry is:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py
+```
+
+or:
+
+```bash
+~/kitchen_arm_ws/start_remibot_system.sh
+```
+
+This replaces ad hoc GUI-launched RViz and gives one system-owned lifecycle.
+
+## Development Test Commands
+
+Build only the new packages:
+
+```bash
+cd ~/kitchen_arm_ws
+source /opt/ros/${ROS_DISTRO:-humble}/setup.bash
+colcon build --packages-select remibot_console remibot_bringup
+source install/setup.bash
+```
+
+Confirm the GUI executable exists:
+
+```bash
+ros2 pkg executables remibot_console
+```
+
+The GUI entry point is launched by ROS2's `/usr/bin/python3`, so PySide6 must be available there:
+
+```bash
+/usr/bin/python3 -c "import PySide6; print(PySide6.__file__)"
+```
+
+If that import fails:
+
+```bash
+/usr/bin/python3 -m pip install "PySide6>=6.7"
+```
+
+Inspect bringup arguments:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py --show-args
+```
+
+Run GUI only:
+
+```bash
+ros2 run remibot_console kitchen_arm_gui --backend ros2
+```
+
+Test GUI-to-RViz preview:
+
+1. Start MoveIt/RViz and the GUI without hardware:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py \
+  start_candle:=false \
+  start_joint4_mapper:=false
+```
+
+2. Open the GUI `Teleop` tab.
+3. Move the joint sliders.
+4. Click `Preview Sliders in RViz`.
+5. RViz should refresh the robot pose through `/joint_states`.
+
+This preview path is for simulation and planning only. It is not the final hardware command path.
+
+Run simulation/visualization without hardware bridge:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py \
+  start_candle:=false \
+  start_joint4_mapper:=false
+```
+
+Run full system:
+
+```bash
+~/kitchen_arm_ws/start_remibot_system.sh
+```

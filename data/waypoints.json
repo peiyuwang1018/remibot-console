@@ -1,0 +1,28 @@
+{
+  "home": {
+    "q": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "desc": "Neutral folded pose",
+    "tags": [
+      "system"
+    ]
+  },
+  "above_pan": {
+    "q": [
+      0.2,
+      1.1,
+      0.8,
+      -0.3,
+      0.0
+    ],
+    "desc": "Ready above pan",
+    "tags": [
+      "cooking"
+    ]
+  }
+}

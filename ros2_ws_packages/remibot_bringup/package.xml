@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>remibot_bringup</name>
+  <version>0.1.0</version>
+  <description>System bringup for the kitchen arm development console, MoveIt, RViz, joystick, scene, and hardware bridge.</description>
+  <maintainer email="uyfql@student.kit.edu">Peiyu Wang</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>kitchen_arm_moveit_config</exec_depend>
+  <exec_depend>remibot_console</exec_depend>
+  <exec_depend>joy</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

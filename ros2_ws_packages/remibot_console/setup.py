@@ -1,0 +1,24 @@
+from setuptools import find_packages, setup
+
+package_name = "remibot_console"
+
+setup(
+    name=package_name,
+    version="0.1.0",
+    packages=find_packages(include=["kitchen_qt", "kitchen_qt.*", "remibot_console"]),
+    data_files=[
+        ("share/ament_index/resource_index/packages", [f"resource/{package_name}"]),
+        (f"share/{package_name}", ["package.xml"]),
+    ],
+    install_requires=["setuptools"],
+    zip_safe=True,
+    maintainer="Peiyu Wang",
+    maintainer_email="uyfql@student.kit.edu",
+    description="Qt operator console for kitchen arm debugging, simulation, and hardware operation.",
+    license="MIT",
+    entry_points={
+        "console_scripts": [
+            "kitchen_arm_gui = kitchen_qt.app:main",
+        ],
+    },
+)

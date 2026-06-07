@@ -1,0 +1,29 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# Runtime data and temporary files
+*.tmp
+data/teaching_data/
+qt_operator_console/data/
+
+# OS files
+.DS_Store
+Thumbs.db
