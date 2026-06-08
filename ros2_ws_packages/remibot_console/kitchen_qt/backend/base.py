@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, Signal
 
 class ArmBackend(QObject):
     state_changed = Signal()
+    visualization_frame = Signal(object)
 
     name = "base"
 

@@ -7,14 +7,12 @@ from typing import Any
 from datetime import datetime
 
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QImage
 
-from ..config import JOINTS
+from ..config import JOINTS, ROS_JOINT_NAMES, VISUALIZATION_COMPRESSED_IMAGE_TOPICS, VISUALIZATION_IMAGE_TOPICS
 from ..models import JointState
 from ..models import RobotState
 from .base import ArmBackend
-
-
-ROS_JOINT_NAMES = {ui_name: f"joint{index + 1}" for index, ui_name in enumerate(JOINTS)}
 
 
 class Ros2Backend(ArmBackend):
@@ -30,6 +28,8 @@ class Ros2Backend(ArmBackend):
         self.executor_thread: Thread | None = None
         self.joint_state_pub = None
         self.trajectory_client = None
+        self.image_subs = []
+        self.compressed_image_subs = []
         self.preview_positions: list[float] | None = None
         self.preview_timer = QTimer(self)
         self.preview_timer.setInterval(100)
@@ -44,6 +44,8 @@ class Ros2Backend(ArmBackend):
             from rclpy.executors import MultiThreadedExecutor
             from rclpy.duration import Duration
             from sensor_msgs.msg import Joy
+            from sensor_msgs.msg import CompressedImage
+            from sensor_msgs.msg import Image
             from sensor_msgs.msg import JointState as RosJointState
             from trajectory_msgs.msg import JointTrajectoryPoint
         except ImportError:
@@ -61,6 +63,8 @@ class Ros2Backend(ArmBackend):
         self.FollowJointTrajectory = FollowJointTrajectory
         self.JointTrajectoryPoint = JointTrajectoryPoint
         self.RosJointState = RosJointState
+        self.Image = Image
+        self.CompressedImage = CompressedImage
         if not rclpy.ok():
             rclpy.init(args=None)
             self._owns_rclpy = True
@@ -68,6 +72,14 @@ class Ros2Backend(ArmBackend):
         self.joint_state_pub = self.node.create_publisher(RosJointState, "/joint_states", 10)
         self.joy_sub = self.node.create_subscription(Joy, "/joy", self._joy_callback, 10)
         self.joint_state_sub = self.node.create_subscription(RosJointState, "/joint_states", self._joint_state_callback, 10)
+        self.image_subs = [
+            self.node.create_subscription(Image, topic, self._image_callback, 2)
+            for topic in VISUALIZATION_IMAGE_TOPICS
+        ]
+        self.compressed_image_subs = [
+            self.node.create_subscription(CompressedImage, topic, self._compressed_image_callback, 2)
+            for topic in VISUALIZATION_COMPRESSED_IMAGE_TOPICS
+        ]
         self.trajectory_client = ActionClient(self.node, FollowJointTrajectory, "/arm_controller/follow_joint_trajectory")
         self.executor = MultiThreadedExecutor()
         self.executor.add_node(self.node)
@@ -79,6 +91,10 @@ class Ros2Backend(ArmBackend):
         self.available = True
         self.state.set_backend(self.name, True)
         self.state.log("ROS2 backend started; GUI preview publishes /joint_states")
+        self.state.log(
+            "Visualization image stream listening on: "
+            + ", ".join(VISUALIZATION_IMAGE_TOPICS + VISUALIZATION_COMPRESSED_IMAGE_TOPICS)
+        )
         self.state_changed.emit()
 
     def stop(self) -> None:
@@ -251,6 +267,39 @@ class Ros2Backend(ArmBackend):
                     })
         if updated:
             self.state_changed.emit()
+
+    def _image_callback(self, msg) -> None:
+        image = self._qimage_from_ros_image(msg)
+        if image is not None:
+            self.visualization_frame.emit(image)
+
+    def _compressed_image_callback(self, msg) -> None:
+        image = QImage()
+        if image.loadFromData(bytes(msg.data)):
+            self.visualization_frame.emit(image.copy())
+
+    def _qimage_from_ros_image(self, msg) -> QImage | None:
+        width = int(msg.width)
+        height = int(msg.height)
+        if width <= 0 or height <= 0:
+            return None
+        encoding = msg.encoding.lower()
+        data = bytes(msg.data)
+        step = int(msg.step)
+        if encoding in {"rgb8", "8uc3"}:
+            return QImage(data, width, height, step, QImage.Format_RGB888).copy()
+        if encoding == "bgr8":
+            return QImage(data, width, height, step, QImage.Format_RGB888).rgbSwapped().copy()
+        if encoding in {"rgba8", "bgra8"}:
+            image = QImage(data, width, height, step, QImage.Format_RGBA8888)
+            if encoding == "bgra8":
+                image = image.rgbSwapped()
+            return image.copy()
+        if encoding in {"mono8", "8uc1"}:
+            return QImage(data, width, height, step, QImage.Format_Grayscale8).copy()
+        self.state.log(f"Unsupported visualization image encoding: {msg.encoding}", "WARN")
+        self.state_changed.emit()
+        return None
 
     def _publish_preview_joint_state(self) -> None:
         if (

@@ -34,6 +34,13 @@ QLabel#Pill {
     border-radius: 6px;
     padding: 5px 9px;
 }
+QLabel#VisualizationFrame {
+    background: #202a3a;
+    border: 1px solid #35445c;
+    border-radius: 7px;
+    color: #aebbd0;
+    padding: 16px;
+}
 QPushButton {
     background: #2865a6;
     border: 1px solid #3578bf;
@@ -145,6 +152,13 @@ QLabel#Pill {
     border: 1px solid #cbd6e4;
     border-radius: 6px;
     padding: 5px 9px;
+}
+QLabel#VisualizationFrame {
+    background: #eef3f8;
+    border: 1px solid #cbd6e4;
+    border-radius: 7px;
+    color: #42526b;
+    padding: 16px;
 }
 QPushButton {
     background: #256fb8;

@@ -332,6 +332,27 @@ RViz display integration plan:
 - Long term: build a C++ Qt/RViz bridge or a lightweight native 3D viewport for embedded visualization.
 - Avoid brittle X11 window reparenting except for temporary debugging experiments.
 
+Initial image-stream implementation:
+
+- The Workbench center visualization area is now a Qt image widget.
+- Mock mode emits a synthetic visualization stream so the GUI path can be tested without ROS2 graphics.
+- ROS2 mode subscribes these candidate streams:
+  - `/remibot/visualization/image`
+  - `/rviz/rendered_image`
+  - `/camera/image_raw`
+  - `/remibot/visualization/image/compressed`
+  - `/rviz/rendered_image/compressed`
+- This is a frame-stream experiment, not true RViz embedding. A separate node still needs to publish rendered frames from RViz, a simulator, or a camera/offscreen renderer.
+
+Joint command limits:
+
+- Slider and numeric command ranges now follow the URDF joint limits from `kitchen_arm.urdf`:
+  - J1: `-3.1416 .. 3.1416`
+  - J2: `0.0 .. 2.6180`
+  - J3: `0.0 .. 2.1817`
+  - J4: `-1.8326 .. 1.2217`
+  - J5: `-6.2832 .. 6.2832`
+
 ### Milestone 3: Teaching Mode
 
 - Add Teaching Drag workflow.

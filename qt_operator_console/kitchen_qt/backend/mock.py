@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QColor, QImage, QPainter, QPen
 
 from ..config import DATA_HZ, JOINTS
 from ..models import JointState, RobotState
@@ -25,6 +26,7 @@ class MockBackend(ArmBackend):
         self.t = 0.0
         self.homing_elapsed = 0.0
         self.step_elapsed = 0.0
+        self.frame_counter = 0
 
     def start(self) -> None:
         with self.state.lock:
@@ -179,6 +181,7 @@ class MockBackend(ArmBackend):
         self._update_teaching_recording()
         self._update_homing(dt)
         self._update_step(dt)
+        self._publish_mock_frame()
         self.state_changed.emit()
 
     def _update_joints(self) -> None:
@@ -250,3 +253,38 @@ class MockBackend(ArmBackend):
                 self.state.step_running = False
                 self.state.step_results = {"rise_time_s": 0.68, "overshoot_pct": 4.5, "settling_time_s": 1.42}
                 self.state.log("Step test complete")
+
+    def _publish_mock_frame(self) -> None:
+        self.frame_counter += 1
+        if self.frame_counter % 3:
+            return
+        image = QImage(960, 540, QImage.Format_RGB888)
+        image.fill(QColor("#1f2937"))
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(QPen(QColor("#4b5563"), 1))
+        for x in range(0, image.width(), 60):
+            painter.drawLine(x, 0, x, image.height())
+        for y in range(0, image.height(), 60):
+            painter.drawLine(0, y, image.width(), y)
+        painter.setPen(QPen(QColor("#66c9a4"), 5))
+        cx = image.width() // 2
+        cy = image.height() // 2 + 120
+        length = 90.0
+        angle = self.t * 0.7
+        points = [(cx, cy)]
+        for index in range(5):
+            prev_x, prev_y = points[-1]
+            angle += 0.45 * math.sin(self.t * 0.35 + index)
+            next_x = int(prev_x + length * math.cos(angle - 1.2))
+            next_y = int(prev_y + length * math.sin(angle - 1.2))
+            points.append((next_x, next_y))
+            length *= 0.82
+        painter.setBrush(QColor("#e8b955"))
+        for start, end in zip(points, points[1:]):
+            painter.drawLine(start[0], start[1], end[0], end[1])
+            painter.drawEllipse(end[0] - 7, end[1] - 7, 14, 14)
+        painter.setPen(QColor("#d1d5db"))
+        painter.drawText(22, 34, "Mock visualization stream")
+        painter.end()
+        self.visualization_frame.emit(image)

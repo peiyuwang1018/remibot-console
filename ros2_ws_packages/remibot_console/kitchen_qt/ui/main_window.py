@@ -31,10 +31,11 @@ from PySide6.QtWidgets import (
 )
 
 from ..backend.base import ArmBackend
-from ..config import CONTROL_MODES, JOINTS, SPEED_LEVELS, TOOLS, UI_HZ
+from ..config import CONTROL_MODES, JOINT_LIMITS_RAD, JOINTS, SPEED_LEVELS, TOOLS, UI_HZ
 from ..models import RobotState
 from ..storage import JsonStore
 from .theme import LIGHT_STYLE_SHEET, STYLE_SHEET
+from .widgets.frame_view import FrameView
 from .widgets.plot import MultiLinePlot
 
 
@@ -65,6 +66,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(STYLE_SHEET)
 
         self.backend.state_changed.connect(self.refresh)
+        self.backend.visualization_frame.connect(self._set_visualization_frame)
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self.refresh)
         self.refresh_timer.start(int(1000 / UI_HZ))
@@ -155,6 +157,11 @@ class MainWindow(QMainWindow):
         label.setObjectName("Pill")
         return label
 
+    def _subhead(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("SectionTitle")
+        return label
+
     def _state_color(self, dark: dict[str, str], light: dict[str, str], key: str, default: str = "#e6ebf4") -> str:
         return (dark if self.dark_theme else light).get(key, default)
 
@@ -162,12 +169,10 @@ class MainWindow(QMainWindow):
         page = QWidget()
         layout = QHBoxLayout(page)
 
-        left, left_layout = self._panel("Joint Command And State")
+        left, left_layout = self._panel()
         left.setMinimumWidth(440)
         self._build_joint_command_panel(left_layout)
-        left_layout.addSpacing(8)
         self._build_joint_telemetry_panel(left_layout)
-        left_layout.addSpacing(8)
         self._build_manual_operation_panel(left_layout)
 
         center, center_layout = self._panel("Scope And Visualization")
@@ -187,6 +192,7 @@ class MainWindow(QMainWindow):
         return page
 
     def _build_joint_telemetry_panel(self, layout: QVBoxLayout) -> None:
+        layout.addWidget(self._subhead("Joint State"))
         self.joint_table = QTableWidget(len(JOINTS), 6)
         self.joint_table.setHorizontalHeaderLabels(["Joint", "I (A)", "q (rad)", "dq (rad/s)", "Temp", "Fault"])
         self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
@@ -194,7 +200,9 @@ class MainWindow(QMainWindow):
             self.joint_table.setColumnWidth(col, width)
         self.joint_table.verticalHeader().setVisible(False)
         self.joint_table.setAlternatingRowColors(True)
-        layout.addWidget(self.joint_table)
+        self.joint_table.setMinimumHeight(190)
+        self.joint_table.setMaximumHeight(240)
+        layout.addWidget(self.joint_table, 0)
         self.pose_label = QLabel("xyz: --\nrpy: --")
         self.pose_label.setObjectName("Pill")
         layout.addWidget(self.pose_label)
@@ -204,19 +212,18 @@ class MainWindow(QMainWindow):
 
     def _build_scope_visualization_panel(self, layout: QVBoxLayout) -> None:
         self.signal_plot = MultiLinePlot()
-        self.signal_plot.setMinimumHeight(260)
+        self.signal_plot.setMinimumHeight(180)
+        self.signal_plot.setMaximumHeight(230)
         layout.addWidget(self.signal_plot, 0)
-        self.workbench_visualization_label = QLabel(
-            "RViz is currently managed as an external ROS2 process.\n\n"
-            "Next stage: stream RViz/offscreen simulation frames or a lightweight 3D viewport into this area."
+        self.visualization_frame = FrameView()
+        self.visualization_frame.set_placeholder(
+            "Waiting for visualization image stream\n"
+            "ROS2 topics: /remibot/visualization/image, /rviz/rendered_image, /camera/image_raw"
         )
-        self.workbench_visualization_label.setAlignment(Qt.AlignCenter)
-        self.workbench_visualization_label.setWordWrap(True)
-        self.workbench_visualization_label.setObjectName("Pill")
-        layout.addWidget(self.workbench_visualization_label, 1)
+        layout.addWidget(self.visualization_frame, 1)
 
     def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:
-        layout.addWidget(QLabel("Control source"))
+        layout.addWidget(self._subhead("Control Source"))
         self.joystick_label = self._pill("Joystick: unknown")
         self.control_source_label = self._pill("Active: GUI")
         self.data_source_label = self._pill("Data: sim")
@@ -256,6 +263,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(quick_row)
 
     def _build_joint_command_panel(self, layout: QVBoxLayout) -> None:
+        layout.addWidget(self._subhead("Joint Command"))
         self.manual_sliders: dict[str, QSlider] = {}
         for joint in JOINTS:
             row = QHBoxLayout()
@@ -263,7 +271,9 @@ class MainWindow(QMainWindow):
             label.setFixedWidth(32)
             row.addWidget(label)
             slider = QSlider(Qt.Horizontal)
-            slider.setRange(-3140, 3140)
+            lower, upper = JOINT_LIMITS_RAD[joint]
+            slider.setRange(int(lower * 1000), int(upper * 1000))
+            slider.setToolTip(f"{joint}: {lower:.4f} to {upper:.4f} rad")
             slider.sliderReleased.connect(self._preview_slider_pose)
             self.manual_sliders[joint] = slider
             row.addWidget(slider, 1)
@@ -274,19 +284,20 @@ class MainWindow(QMainWindow):
         send_row = QHBoxLayout()
         self.manual_joint = QComboBox()
         self.manual_joint.addItems(JOINTS)
+        self.manual_joint.currentTextChanged.connect(self._update_manual_target_range)
         self.manual_target = QDoubleSpinBox()
-        self.manual_target.setRange(-3.14, 3.14)
         self.manual_target.setDecimals(3)
         self.manual_target.setSingleStep(0.01)
+        self._update_manual_target_range(self.manual_joint.currentText())
         send = QPushButton("Send Target")
         send.clicked.connect(self._send_manual_target)
         send_row.addWidget(self.manual_joint)
         send_row.addWidget(self.manual_target)
         send_row.addWidget(send)
         layout.addLayout(send_row)
-        layout.addStretch(1)
 
     def _build_waypoint_panel(self, layout: QVBoxLayout) -> None:
+        layout.addWidget(self._subhead("Waypoints"))
         self.wp_name = QLineEdit()
         self.wp_name.setPlaceholderText("Waypoint name")
         self.wp_desc = QLineEdit()
@@ -297,7 +308,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.wp_desc)
         layout.addWidget(save)
         self.waypoint_list = QListWidget()
-        layout.addWidget(self.waypoint_list, 1)
+        self.waypoint_list.setMinimumHeight(150)
+        self.waypoint_list.setMaximumHeight(260)
+        layout.addWidget(self.waypoint_list, 0)
         buttons = QHBoxLayout()
         preview = QPushButton("Preview (Sim)")
         preview.clicked.connect(self._preview_selected_waypoint)
@@ -309,8 +322,7 @@ class MainWindow(QMainWindow):
         buttons.addWidget(execute)
         buttons.addWidget(delete)
         layout.addLayout(buttons)
-        layout.addSpacing(8)
-        layout.addWidget(QLabel("Teaching Drag"))
+        layout.addWidget(self._subhead("Teaching Drag"))
         self.teaching_mode_label = self._pill("Teaching: inactive")
         self.recording_label = self._pill("Recording: inactive - 0 points")
         layout.addWidget(self.teaching_mode_label)
@@ -336,18 +348,30 @@ class MainWindow(QMainWindow):
         layout.addLayout(rec_buttons)
 
     def _build_homing_summary_panel(self, layout: QVBoxLayout) -> None:
-        layout.addWidget(QLabel("Homing"))
+        layout.addWidget(self._subhead("Homing"))
         self.workbench_homing_summary = self._pill("not homed")
         layout.addWidget(self.workbench_homing_summary)
+        self.workbench_homing_labels: dict[str, QLabel] = {}
+        homing_grid = QGridLayout()
+        for row, step in enumerate(self.state.homing_steps):
+            homing_grid.addWidget(QLabel(step), row, 0)
+            label = self._pill("pending")
+            self.workbench_homing_labels[step] = label
+            homing_grid.addWidget(label, row, 1)
+        layout.addLayout(homing_grid)
         start = QPushButton("Start Homing")
         start.clicked.connect(self.backend.start_homing)
         layout.addWidget(start)
 
     def _build_tool_summary_panel(self, layout: QVBoxLayout) -> None:
-        layout.addWidget(QLabel("Tool"))
+        layout.addWidget(self._subhead("Tool"))
+        self.workbench_tool_combo = QComboBox()
+        self.workbench_tool_combo.addItems(TOOLS)
+        self.workbench_tool_combo.currentTextChanged.connect(self._set_tool)
         self.workbench_tool_summary = self._pill("Tool: --")
         identify = QPushButton("Identify Selected Tool")
-        identify.clicked.connect(self._identify_tool)
+        identify.clicked.connect(self._identify_current_tool)
+        layout.addWidget(self.workbench_tool_combo)
         layout.addWidget(self.workbench_tool_summary)
         layout.addWidget(identify)
 
@@ -627,6 +651,8 @@ class MainWindow(QMainWindow):
         self.data_source_label.setStyleSheet(f"color: {('#66c9a4' if self.dark_theme else '#047857') if snap['data_source'] == 'real_teaching' else ('#7ab2f0' if self.dark_theme else '#155eef')};")
         self._set_combo_silent(self.mode_combo, snap["mode"])
         self._set_combo_silent(self.tool_combo, snap["tool"])
+        if hasattr(self, "workbench_tool_combo"):
+            self._set_combo_silent(self.workbench_tool_combo, snap["tool"])
 
         for row, joint in enumerate(JOINTS):
             js = snap["joints"][joint]
@@ -642,7 +668,7 @@ class MainWindow(QMainWindow):
                     item.setForeground(QColor(("#047857" if not self.dark_theme else "#66c9a4") if value == "OK" else ("#9a6700" if not self.dark_theme else "#e8b955")))
             slider = self.manual_sliders[joint]
             if not slider.isSliderDown():
-                slider.setValue(int(js.position * 1000))
+                slider.setValue(max(slider.minimum(), min(slider.maximum(), int(js.position * 1000))))
 
         pose = snap["pose"]
         self.pose_label.setText(
@@ -659,12 +685,13 @@ class MainWindow(QMainWindow):
         )
         self.recording_label.setText(("Recording" if snap["recording"] else "Recording: inactive") + f" - {snap['recorded_count']} points")
         for step, status in snap["homing_steps"].items():
-            if step in self.homing_labels:
-                label = self.homing_labels[step]
-                label.setText(status)
-                label.setStyleSheet(
-                    f"color: {self._state_color(HOMING_COLORS, LIGHT_HOMING_COLORS, status)};"
-                )
+            for labels in [getattr(self, "homing_labels", {}), getattr(self, "workbench_homing_labels", {})]:
+                if step in labels:
+                    label = labels[step]
+                    label.setText(status)
+                    label.setStyleSheet(
+                        f"color: {self._state_color(HOMING_COLORS, LIGHT_HOMING_COLORS, status)};"
+                    )
 
         if snap["step_results"]:
             result = snap["step_results"]
@@ -691,6 +718,15 @@ class MainWindow(QMainWindow):
             self.state.tool = tool
         self.state.log(f"Current tool selected: {tool}")
         self.refresh()
+
+    def _update_manual_target_range(self, joint: str) -> None:
+        lower, upper = JOINT_LIMITS_RAD.get(joint, (-3.1416, 3.1416))
+        self.manual_target.setRange(lower, upper)
+        self.manual_target.setToolTip(f"{joint}: {lower:.4f} to {upper:.4f} rad")
+
+    def _set_visualization_frame(self, image) -> None:
+        if hasattr(self, "visualization_frame"):
+            self.visualization_frame.set_frame(image)
 
     def _send_manual_target(self) -> None:
         if not self._gui_command_allowed():
@@ -824,6 +860,11 @@ class MainWindow(QMainWindow):
         self.store.save_tools(self.state)
         self.refresh()
 
+    def _identify_current_tool(self) -> None:
+        self.backend.identify_tool(self.state.snapshot()["tool"])
+        self.store.save_tools(self.state)
+        self.refresh()
+
     def _refresh_tools(self, snap: dict) -> None:
         self.tool_list.clear()
         for name, info in snap["tools"].items():
@@ -831,7 +872,10 @@ class MainWindow(QMainWindow):
         info = snap["tools"].get(self.tool_id_combo.currentText(), {})
         self.tool_info.setText(f"Mass: {info.get('mass', '--')} kg\nCOM: {info.get('com', '--')}\nResidual: {info.get('residual', '--')} Nm")
         if hasattr(self, "workbench_tool_summary"):
-            self.workbench_tool_summary.setText(f"{self.tool_id_combo.currentText()}  mass={info.get('mass', '--')} kg")
+            current_info = snap["tools"].get(snap["tool"], {})
+            self.workbench_tool_summary.setText(
+                f"{snap['tool']}  mass={current_info.get('mass', '--')} kg  residual={current_info.get('residual', '--')}"
+            )
 
     def _clear_logs(self) -> None:
         with self.state.lock:

@@ -209,3 +209,17 @@ Run full system:
 The full-system wrapper starts `joy_arm_control.py` explicitly for hardware/joystick sessions. For GUI-only simulation preview, prefer the launch command above with `start_joy_control` left at its default `false`.
 
 In the GUI, use `Use GUI` or `Use Joystick` to mark the intended control authority. When joystick authority is active, GUI slider and waypoint commands are blocked. This is a UI-level guard; the long-term control authority should be enforced by a ROS2 arbitration/lifecycle node.
+
+## Visualization Frame Stream Experiment
+
+The Workbench now contains a Qt image widget for rendered frames. This does not embed RViz itself. It subscribes image topics and displays the newest frame:
+
+```text
+/remibot/visualization/image
+/rviz/rendered_image
+/camera/image_raw
+/remibot/visualization/image/compressed
+/rviz/rendered_image/compressed
+```
+
+To test the pipeline without a renderer, launch the GUI in mock mode; it emits a synthetic arm preview frame. To test with ROS2, publish a `sensor_msgs/Image` or `sensor_msgs/CompressedImage` on one of the topics above. If this proves useful, the next step is a dedicated renderer node that captures RViz/offscreen simulation frames and republishes them for the console.
