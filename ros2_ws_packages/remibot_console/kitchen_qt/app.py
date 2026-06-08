@@ -35,6 +35,6 @@ def main(argv: list[str] | None = None) -> int:
     else:
         state.log("MuJoCo MJCF not configured; visualization uses available fallback streams")
     backend = MockBackend(state) if args.backend == "mock" else Ros2Backend(state)
-    window = MainWindow(state, backend, store, args.data_dir)
+    window = MainWindow(state, backend, store, args.data_dir, mjcf_path)
     window.show()
     return app.exec()

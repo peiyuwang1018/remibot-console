@@ -216,9 +216,11 @@ For GUI/RViz simulation preview, keep joystick control output off.
 
 In the GUI, use `Use GUI` or `Use Joystick` to mark the intended control authority. When joystick authority is active, GUI slider and waypoint commands are blocked. This is a UI-level guard; the long-term control authority should be enforced by a ROS2 arbitration/lifecycle node.
 
-## Visualization Frame Stream Experiment
+## Visualization Integration
 
-The Workbench now contains a Qt image widget for rendered frames. This does not embed RViz itself. It subscribes image topics and displays the newest frame:
+The Workbench now prefers an embedded MuJoCo viewport when an MJCF model and the optional Python `mujoco` package are available. Configure the model with `--mjcf`, `REMIBOT_MJCF`, or `data/config.yaml`.
+
+The ROS2 image widget remains available as a fallback. It subscribes image topics and displays the newest frame only when the MuJoCo viewport is inactive:
 
 ```text
 /remibot/visualization/image
@@ -228,7 +230,7 @@ The Workbench now contains a Qt image widget for rendered frames. This does not 
 /rviz/rendered_image/compressed
 ```
 
-To test the GUI-only pipeline, launch the GUI in mock mode; it emits a synthetic arm preview frame.
+To test the GUI-only pipeline, launch the GUI in mock mode; it emits synthetic state and the MuJoCo viewport follows it when configured.
 
 Implemented RViz capture renderer:
 
@@ -242,16 +244,10 @@ This node captures the RViz window with Qt screen capture and publishes:
 /remibot/visualization/image
 ```
 
-The bringup launch starts RViz capture by default:
+The bringup launch does not start RViz capture by default. Enable it only for capture debugging:
 
 ```bash
-ros2 launch remibot_bringup kitchen_arm_system.launch.py
-```
-
-Disable it when testing another image source:
-
-```bash
-ros2 launch remibot_bringup kitchen_arm_system.launch.py start_rviz_capture:=false
+ros2 launch remibot_bringup kitchen_arm_system.launch.py start_rviz_capture:=true
 ```
 
 Fallback 2D renderer:
@@ -286,7 +282,6 @@ Start the fallback renderer from bringup:
 
 ```bash
 ros2 launch remibot_bringup kitchen_arm_system.launch.py \
-  start_rviz_capture:=false \
   start_renderer:=true
 ```
 
@@ -297,7 +292,7 @@ ros2 run remibot_console visualization_renderer --ros-args \
   -p image_topic:=/remibot/visualization/image
 ```
 
-This is still not true RViz embedding. It is a real RViz window frame stream into Qt. The preferred next step is a MuJoCo/offscreen viewport in Qt. A C++ Qt/RViz bridge is reserved as a contingency if MuJoCo cannot cover the required debugging workflow.
+This is still not true RViz embedding. It is a real RViz window frame stream into Qt. The preferred embedded path is MuJoCo/offscreen rendering in Qt. A C++ Qt/RViz bridge is reserved as a contingency if MuJoCo cannot cover the required debugging workflow.
 
 ## Command Source Contention Notes
 

@@ -84,9 +84,15 @@ Adopted direction:
 - Jetson fallback: keep a lightweight 2D renderer with J1 top view, J2-J4 side view, and J5 roll view.
 - Contingency: use C++ Qt/RViz only if MuJoCo/offscreen cannot provide the required debugging workflow.
 
-### Claimed Existing `mujoco_viewport.py`
+### MuJoCo Viewport Status
 
-The brief states that `qt_operator_console/mujoco_viewport.py` already exists. It does not exist in the current repository. Do not wire UI code to that file until it is actually added.
+The repository now includes `qt_operator_console/kitchen_qt/ui/widgets/mujoco_viewport.py`. It is an initial embedded viewport that:
+
+- loads an MJCF path discovered by `find_mjcf()`
+- renders with the optional Python `mujoco` package
+- maps `joint1` through `joint5` into `qpos` when those names exist in the MJCF
+- updates from the GUI's current joint state
+- falls back to the image-stream widget when MuJoCo is unavailable
 
 ### Flat `qt_operator_console/*.py` Layout
 
@@ -109,11 +115,11 @@ Goal: replace window capture as the main embedded visualization path.
 
 Required work:
 
-- Add a real `MujocoViewport` widget.
-- Add a dependency strategy for `mujoco>=3.0.0` without making simple mock installs fragile.
-- Use `find_mjcf()` to locate the model.
-- Feed joint state into the viewport through Qt signals.
-- Keep a mock viewport fallback.
+- Improve camera and lighting defaults.
+- Add model asset path diagnostics.
+- Add explicit UI status for mapped and unmapped MJCF joints.
+- Add interaction controls if the operator needs camera orbit/pan/zoom.
+- Keep the image-stream and 2D fallback paths available.
 
 Acceptance criteria:
 
@@ -167,13 +173,13 @@ Mock behavior:
 Current state:
 
 - `start_joy_control` defaults to false.
-- `start_rviz_capture` defaults to true as a bridge.
+- `start_rviz_capture` defaults to false. RViz capture is opt-in.
 - `start_renderer` defaults to false to avoid fighting RViz capture.
 - The fallback renderer publishes a separate three-view 2D image stream unless deliberately remapped.
 
 Future adjustment:
 
-- When MuJoCo/offscreen viewport is stable, make RViz capture opt-in rather than default.
+- Consider making `start_renderer` opt-in from wrapper environment variables for Jetson fallback sessions.
 
 ### Task E: Safety Panel
 

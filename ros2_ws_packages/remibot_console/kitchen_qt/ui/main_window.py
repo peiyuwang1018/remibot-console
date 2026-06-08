@@ -37,7 +37,7 @@ from ..config import CONTROL_MODES, JOINT_LIMITS_RAD, JOINTS, SPEED_LEVELS, TOOL
 from ..models import RobotState
 from ..storage import JsonStore
 from .theme import LIGHT_STYLE_SHEET, STYLE_SHEET
-from .widgets.frame_view import FrameView
+from .widgets.mujoco_viewport import MujocoViewport
 from .widgets.plot import MultiLinePlot
 
 
@@ -56,12 +56,13 @@ LIGHT_CONTACT_COLORS = {"No Contact": "#047857", "Contact": "#9a6700", "Wedged":
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, state: RobotState, backend: ArmBackend, store: JsonStore, data_dir: Path) -> None:
+    def __init__(self, state: RobotState, backend: ArmBackend, store: JsonStore, data_dir: Path, mjcf_path: str | None = None) -> None:
         super().__init__()
         self.state = state
         self.backend = backend
         self.store = store
         self.data_dir = data_dir
+        self.mjcf_path = mjcf_path
         self.dark_theme = True
         self.setWindowTitle("Kitchen Arm Operator Console - Qt")
         self.resize(1360, 860)
@@ -253,11 +254,7 @@ class MainWindow(QMainWindow):
         self.signal_plot.setMinimumHeight(180)
         self.signal_plot.setMaximumHeight(230)
         layout.addWidget(self.signal_plot, 0)
-        self.visualization_frame = FrameView()
-        self.visualization_frame.set_placeholder(
-            "Waiting for visualization image stream\n"
-            "ROS2 topics: /remibot/visualization/image, /rviz/rendered_image, /camera/image_raw"
-        )
+        self.visualization_frame = MujocoViewport(self.mjcf_path)
         layout.addWidget(self.visualization_frame, 1)
 
     def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:
@@ -316,7 +313,7 @@ class MainWindow(QMainWindow):
             self.manual_sliders[joint] = slider
             row.addWidget(slider, 1)
             layout.addLayout(row)
-        preview = QPushButton("Preview Sliders in RViz")
+        preview = QPushButton("Preview Sliders in Sim")
         preview.clicked.connect(self._preview_slider_pose)
         layout.addWidget(preview)
         send_row = QHBoxLayout()
@@ -482,7 +479,7 @@ class MainWindow(QMainWindow):
             self.manual_sliders[joint] = slider
             row.addWidget(slider, 1)
             right_layout.addLayout(row)
-        preview = QPushButton("Preview Sliders in RViz")
+        preview = QPushButton("Preview Sliders in Sim")
         preview.clicked.connect(self._preview_slider_pose)
         right_layout.addWidget(preview)
         send_row = QHBoxLayout()
@@ -630,9 +627,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(page)
         panel, panel_layout = self._panel("Visualization Host")
         text = QLabel(
-            "RViz is managed by the ROS2 bringup launch.\n\n"
-            "The console should interact through ROS2 topics, services, and actions while RViz follows /joint_states, "
-            "robot_description, TF, markers, and the MoveIt planning scene."
+            "MuJoCo is the preferred embedded 3D viewport for the console.\n\n"
+            "RViz should remain an external MoveIt planning/debug tool. Window capture is available only as an opt-in bridge."
         )
         text.setAlignment(Qt.AlignCenter)
         text.setWordWrap(True)
@@ -708,6 +704,9 @@ class MainWindow(QMainWindow):
             if not slider.isSliderDown():
                 slider.setValue(max(slider.minimum(), min(slider.maximum(), int(js.position * 1000))))
 
+        if hasattr(self, "visualization_frame") and hasattr(self.visualization_frame, "set_joint_states"):
+            self.visualization_frame.set_joint_states(snap["joints"])
+
         pose = snap["pose"]
         self.pose_label.setText(
             f"xyz: {pose.xyz[0]:+.3f}, {pose.xyz[1]:+.3f}, {pose.xyz[2]:+.3f} m\n"
@@ -764,7 +763,10 @@ class MainWindow(QMainWindow):
 
     def _set_visualization_frame(self, image) -> None:
         if hasattr(self, "visualization_frame"):
-            self.visualization_frame.set_frame(image)
+            if hasattr(self.visualization_frame, "set_fallback_frame"):
+                self.visualization_frame.set_fallback_frame(image)
+            else:
+                self.visualization_frame.set_frame(image)
 
     def _send_manual_target(self) -> None:
         if not self._gui_command_allowed():

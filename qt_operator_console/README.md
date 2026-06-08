@@ -1,6 +1,6 @@
 # Qt Operator Console
 
-This folder contains a Qt/PySide version of the kitchen arm operator console. It is intended as the long-term architecture if the UI needs native Qt integration, RViz embedding, richer visualization, or a more standard desktop application framework.
+This folder contains a Qt/PySide version of the kitchen arm operator console. It is intended as the long-term architecture for native Qt controls, embedded MuJoCo visualization, richer diagnostics, and a more standard desktop application framework.
 
 The app keeps the functional surface expected from the kitchen arm upper computer:
 
@@ -12,7 +12,7 @@ The app keeps the functional surface expected from the kitchen arm upper compute
 - teaching recording save/clear
 - PID tuning and step response preview
 - tool identification and tool library
-- visualization placeholder for RViz/MuJoCo integration
+- embedded MuJoCo visualization with image-stream fallback
 - structured logs
 
 ## Run
@@ -42,6 +42,13 @@ Optional:
 python qt_operator_console/run_qt_console.py --backend mock --data-dir data
 ```
 
+Optional MuJoCo viewport:
+
+```bash
+python -m pip install -r requirements-mujoco.txt
+python qt_operator_console/run_qt_console.py --backend mock --mjcf /path/to/remibot.xml
+```
+
 On Ubuntu/ROS2:
 
 ```bash
@@ -60,10 +67,11 @@ python qt_operator_console/run_qt_console.py --backend ros2
 - `kitchen_qt/ui/main_window.py`: `QMainWindow` with tabbed functional pages.
 - `kitchen_qt/ui/widgets/plot.py`: lightweight Qt painter plot widget.
 
-## RViz/MuJoCo Path
+## Visualization Path
 
-Qt is a good foundation for visualization if native embedding becomes necessary:
+Qt is the host for the operator visualization:
 
-- RViz: replace the Visualization tab placeholder with an RViz Qt widget on Ubuntu, or keep RViz external and exchange state through ROS2.
-- MuJoCo: render offscreen into image frames, or build a Qt OpenGL widget when direct interaction is required.
-- Development recommendation: first stream rendered/camera frames into the Visualization tab; only attempt native embedding after the ROS2 backend is stable.
+- MuJoCo is the preferred embedded 3D viewport and renders from the current joint state.
+- RViz remains external for MoveIt planning and debugging.
+- RViz capture is an opt-in bridge, not the default display path.
+- The 2D/image-stream path remains available as a fallback.

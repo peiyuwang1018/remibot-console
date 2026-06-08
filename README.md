@@ -20,8 +20,9 @@ The console is an upper-computer interface, not the final safety authority. Safe
   - sends joint targets through `/arm_controller/follow_joint_trajectory` when available
   - does not publish preview `/joint_states` directly, to avoid state-source contention
 - Visualization:
-  - Qt viewport subscribes image streams such as `/remibot/visualization/image`
-  - `rviz_capture_renderer` captures the RViz window and republishes it into the Qt viewport as a transitional debug bridge
+  - Qt viewport prefers direct MuJoCo/offscreen rendering when an MJCF model is configured
+  - Qt viewport can still display fallback image streams when MuJoCo is unavailable
+  - `rviz_capture_renderer` is opt-in only and republishes the RViz window into the Qt viewport as a transitional debug bridge
   - `visualization_renderer` provides a separate 2D fallback stream on `/remibot/visualization/fallback_image`
 - Local persistence:
   - waypoints
@@ -56,6 +57,12 @@ Install Python dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
+```
+
+Install MuJoCo support when using the embedded 3D viewport:
+
+```bash
+python -m pip install -r requirements-mujoco.txt
 ```
 
 Run the mock console:
@@ -115,23 +122,39 @@ ros2 launch remibot_bringup kitchen_arm_system.launch.py \
   start_candle:=false \
   start_joint4_mapper:=false
 
-# Disable RViz window capture
+# RViz window capture is disabled by default. Enable it only for capture debugging.
 ros2 launch remibot_bringup kitchen_arm_system.launch.py \
-  start_rviz_capture:=false
+  start_rviz_capture:=true
 
-# Use the 2D fallback renderer instead of RViz capture
+# Use the 2D fallback renderer as the GUI image stream
 ros2 launch remibot_bringup kitchen_arm_system.launch.py \
-  start_rviz_capture:=false \
   start_renderer:=true
 ```
 
 ## Visualization Modes
 
-The preferred long-term visualization path is an embedded MuJoCo/offscreen viewport inside the Qt window. RViz remains valuable for MoveIt planning and desktop debugging, but it should not become the main embedded visualization implementation. The current RViz capture node is a bridge until the MuJoCo viewport is implemented.
+The preferred visualization path is an embedded MuJoCo/offscreen viewport inside the Qt window. RViz remains valuable for MoveIt planning and desktop debugging, but it is not the main embedded visualization implementation. The RViz capture node is disabled by default and should be enabled only as a debugging bridge.
+
+### MuJoCo Embedded Viewport
+
+Configure an MJCF model through one of these paths:
+
+```bash
+python kitchen_arm_gui.py --backend mock --mjcf /path/to/remibot.xml
+REMIBOT_MJCF=/path/to/remibot.xml ros2 launch remibot_bringup kitchen_arm_system.launch.py
+```
+
+or set `mjcf_path` in `data/config.yaml`:
+
+```yaml
+mjcf_path: /path/to/remibot.xml
+```
+
+When the model and the optional `mujoco` Python package are available, the Workbench visualization area renders the MJCF model directly from the current joint state. If MuJoCo is missing or the MJCF path is invalid, the viewport shows a fallback placeholder and can still display image streams.
 
 ### RViz Window Capture
 
-The default visualization path is:
+The optional RViz capture path is:
 
 ```text
 RViz window -> rviz_capture_renderer -> /remibot/visualization/image -> Qt viewport
@@ -143,7 +166,7 @@ Run it manually:
 ros2 run remibot_console rviz_capture_renderer
 ```
 
-This is a practical prototype, not native RViz embedding. It depends on RViz being open, captures the whole RViz window, and can have noticeable latency. It is useful on a development PC when RViz is already open for MoveIt debugging.
+This is a practical prototype, not native RViz embedding. It depends on RViz being open, captures the whole RViz window, and can have noticeable latency. It is useful on a development PC when RViz is already open for MoveIt debugging, but it is not started by default.
 
 ### 2D Fallback Renderer
 
@@ -214,8 +237,8 @@ remibot_console visualization_renderer
 ## Current Limitations
 
 - RViz is not embedded natively. The current renderer captures the RViz window as an image stream.
-- RViz capture requires an open RViz window and may be slow or brittle on Wayland, multi-monitor setups, or unusual window titles.
-- The MuJoCo embedded viewport is planned but not implemented yet.
+- RViz capture requires an open RViz window and may be slow or brittle on Wayland, multi-monitor setups, or unusual window titles. It is opt-in.
+- The MuJoCo embedded viewport needs a valid MJCF model and optional `mujoco` Python package.
 - Preview and execute currently depend on an available `/arm_controller/follow_joint_trajectory` action server.
 - Homing, mode switching, tool identification, PID writes, and step tests still need real ROS2 services/actions behind the UI.
 - The GUI provides operator-level guardrails, but final safety authority is not implemented in this repository.
@@ -224,8 +247,8 @@ remibot_console visualization_renderer
 
 ### Milestone 1: Embedded Simulation Viewport
 
-- Integrate a MuJoCo/offscreen viewport when an MJCF model is available.
-- Make MuJoCo the primary in-window 3D visualization path for desktop and Jetson workflows.
+- Expand the first MuJoCo/offscreen viewport into the primary in-window 3D visualization path for desktop and Jetson workflows.
+- Improve MJCF camera, lighting, model asset discovery, and joint-name mapping diagnostics.
 - Keep the 2D three-view renderer available as a low-cost Jetson fallback when MuJoCo is not installed or GPU resources are constrained.
 - Keep RViz external for MoveIt planning and debugging; use RViz capture only as an opt-in bridge.
 - Use C++ Qt/RViz integration only as a last-resort contingency if MuJoCo/offscreen rendering cannot cover the required debugging workflow.
