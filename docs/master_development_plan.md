@@ -93,6 +93,7 @@ The repository now includes `qt_operator_console/kitchen_qt/ui/widgets/mujoco_vi
 - maps `joint1` through `joint5` into `qpos` when those names exist in the MJCF
 - updates from the GUI's current joint state
 - falls back to the image-stream widget when MuJoCo is unavailable
+- provides an operator selector for `3D MuJoCo` and `2D Fallback`
 
 ### Flat `qt_operator_console/*.py` Layout
 
@@ -174,7 +175,7 @@ Current state:
 
 - `start_joy_control` defaults to false.
 - `start_rviz_capture` defaults to false. RViz capture is opt-in.
-- `start_renderer` defaults to false to avoid fighting RViz capture.
+- `start_renderer` defaults to true because it publishes to `/remibot/visualization/fallback_image`, separate from RViz capture and MuJoCo.
 - The fallback renderer publishes a separate three-view 2D image stream unless deliberately remapped.
 
 Future adjustment:

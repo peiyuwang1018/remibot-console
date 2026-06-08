@@ -21,6 +21,7 @@ The console is an upper-computer interface, not the final safety authority. Safe
   - does not publish preview `/joint_states` directly, to avoid state-source contention
 - Visualization:
   - Qt viewport prefers direct MuJoCo/offscreen rendering when an MJCF model is configured
+  - Workbench provides a `3D MuJoCo` / `2D Fallback` view selector
   - Qt viewport can still display fallback image streams when MuJoCo is unavailable
   - `rviz_capture_renderer` is opt-in only and republishes the RViz window into the Qt viewport as a transitional debug bridge
   - `visualization_renderer` provides a separate 2D fallback stream on `/remibot/visualization/fallback_image`
@@ -102,6 +103,13 @@ Or use the wrapper script:
 ~/kitchen_arm_ws/start_remibot_system.sh
 ```
 
+On the current development machine, the console also auto-detects these existing MuJoCo models when no explicit path is provided:
+
+```text
+~/rl_ws/kitchen_arm_rl_v3.xml
+~/rl_ws/kitchen_arm_rl.xml
+```
+
 The wrapper keeps `joy_arm_control.py` disabled by default because continuous joystick command output can compete with GUI or MoveIt goals. Enable joystick command output only for joystick-control sessions:
 
 ```bash
@@ -151,6 +159,11 @@ mjcf_path: /path/to/remibot.xml
 ```
 
 When the model and the optional `mujoco` Python package are available, the Workbench visualization area renders the MJCF model directly from the current joint state. If MuJoCo is missing or the MJCF path is invalid, the viewport shows a fallback placeholder and can still display image streams.
+
+The Workbench view selector can switch between:
+
+- `3D MuJoCo`: direct MJCF rendering from current joint state
+- `2D Fallback`: low-cost J1 top view, J2-J4 side view, and J5 roll stream
 
 ### RViz Window Capture
 

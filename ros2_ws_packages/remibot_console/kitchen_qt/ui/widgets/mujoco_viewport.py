@@ -27,6 +27,7 @@ class MujocoViewport(QWidget):
         self.data: Any | None = None
         self.renderer: Any | None = None
         self.status = ""
+        self.display_mode = "3d"
         self.joints = {joint: 0.0 for joint in JOINTS}
         self.joint_qpos_addr: dict[str, int] = {}
 
@@ -69,7 +70,8 @@ class MujocoViewport(QWidget):
             self.stack.setCurrentIndex(0)
             self.timer.start()
         else:
-            self.stack.setCurrentIndex(1)
+            self.stack.setCurrentIndex(0)
+            self.status_label.setText(self.status)
 
     @property
     def is_active(self) -> bool:
@@ -81,8 +83,19 @@ class MujocoViewport(QWidget):
                 self.joints[joint] = float(joints[joint].position)
 
     def set_fallback_frame(self, image: QImage) -> None:
-        if not self.is_active:
+        if self.display_mode == "2d" or not self.is_active:
             self.fallback_frame.set_frame(image)
+
+    def set_display_mode(self, mode: str) -> None:
+        self.display_mode = mode
+        if mode == "2d":
+            self.stack.setCurrentIndex(1)
+            self.timer.stop()
+            return
+        self.stack.setCurrentIndex(0)
+        self.status_label.setText(self.status)
+        if self.is_active and not self.timer.isActive():
+            self.timer.start()
 
     def _load_model(self) -> None:
         if not self.mjcf_path:

@@ -218,12 +218,20 @@ In the GUI, use `Use GUI` or `Use Joystick` to mark the intended control authori
 
 ## Visualization Integration
 
-The Workbench now prefers an embedded MuJoCo viewport when an MJCF model and the optional Python `mujoco` package are available. Configure the model with `--mjcf`, `REMIBOT_MJCF`, or `data/config.yaml`.
+The Workbench now provides a `3D MuJoCo` / `2D Fallback` selector. It prefers an embedded MuJoCo viewport when an MJCF model and the optional Python `mujoco` package are available. Configure the model with `--mjcf`, `REMIBOT_MJCF`, or `data/config.yaml`.
 
-The ROS2 image widget remains available as a fallback. It subscribes image topics and displays the newest frame only when the MuJoCo viewport is inactive:
+On the current development machine, the console auto-detects:
+
+```text
+~/rl_ws/kitchen_arm_rl_v3.xml
+~/rl_ws/kitchen_arm_rl.xml
+```
+
+The ROS2 image widget remains available as a fallback. It subscribes image topics and displays the newest frame when `2D Fallback` is selected or when MuJoCo is inactive:
 
 ```text
 /remibot/visualization/image
+/remibot/visualization/fallback_image
 /rviz/rendered_image
 /camera/image_raw
 /remibot/visualization/image/compressed
@@ -284,6 +292,8 @@ Start the fallback renderer from bringup:
 ros2 launch remibot_bringup kitchen_arm_system.launch.py \
   start_renderer:=true
 ```
+
+`start_renderer` defaults to `true` because it publishes to `/remibot/visualization/fallback_image`, which is separate from the RViz capture topic and does not fight the 3D viewport.
 
 To intentionally show the fallback renderer in the GUI viewport, remap its output to the main image topic:
 

@@ -254,8 +254,17 @@ class MainWindow(QMainWindow):
         self.signal_plot.setMinimumHeight(180)
         self.signal_plot.setMaximumHeight(230)
         layout.addWidget(self.signal_plot, 0)
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("View"))
+        self.visualization_mode = QComboBox()
+        self.visualization_mode.addItems(["3D MuJoCo", "2D Fallback"])
+        self.visualization_mode.currentTextChanged.connect(self._set_visualization_mode)
+        mode_row.addWidget(self.visualization_mode)
+        mode_row.addStretch(1)
+        layout.addLayout(mode_row)
         self.visualization_frame = MujocoViewport(self.mjcf_path)
         layout.addWidget(self.visualization_frame, 1)
+        self._set_visualization_mode(self.visualization_mode.currentText())
 
     def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:
         layout.addWidget(self._subhead("Control Source"))
@@ -767,6 +776,13 @@ class MainWindow(QMainWindow):
                 self.visualization_frame.set_fallback_frame(image)
             else:
                 self.visualization_frame.set_frame(image)
+
+    def _set_visualization_mode(self, mode: str) -> None:
+        if not hasattr(self, "visualization_frame"):
+            return
+        display_mode = "2d" if mode.startswith("2D") else "3d"
+        if hasattr(self.visualization_frame, "set_display_mode"):
+            self.visualization_frame.set_display_mode(display_mode)
 
     def _send_manual_target(self) -> None:
         if not self._gui_command_allowed():

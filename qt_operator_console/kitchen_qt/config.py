@@ -31,6 +31,7 @@ TRAJECTORY_DIR = "teaching_data"
 CONFIG_FILE = "config.yaml"
 VISUALIZATION_IMAGE_TOPICS = [
     "/remibot/visualization/image",
+    "/remibot/visualization/fallback_image",
     "/rviz/rendered_image",
     "/camera/image_raw",
 ]
@@ -62,4 +63,11 @@ def find_mjcf(cli_arg: str | Path | None = None, data_dir: Path = DEFAULT_DATA_D
     configured = config.get("mjcf_path")
     if configured:
         return str(Path(str(configured)).expanduser())
+
+    for candidate in [
+        Path("~/rl_ws/kitchen_arm_rl_v3.xml").expanduser(),
+        Path("~/rl_ws/kitchen_arm_rl.xml").expanduser(),
+    ]:
+        if candidate.exists():
+            return str(candidate)
     return None

@@ -146,7 +146,7 @@ def generate_launch_description():
             DeclareLaunchArgument("start_joint4_mapper", default_value="true"),
             DeclareLaunchArgument("start_joy_control", default_value="false"),
             DeclareLaunchArgument("start_scene", default_value="true"),
-            DeclareLaunchArgument("start_renderer", default_value="false"),
+            DeclareLaunchArgument("start_renderer", default_value="true"),
             DeclareLaunchArgument("start_rviz_capture", default_value="false"),
             DeclareLaunchArgument("start_gui", default_value="true"),
             OpaqueFunction(function=_system_actions),
