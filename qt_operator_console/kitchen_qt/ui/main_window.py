@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QPushButton,
     QRadioButton,
@@ -32,16 +34,22 @@ from ..backend.base import ArmBackend
 from ..config import CONTROL_MODES, JOINTS, SPEED_LEVELS, TOOLS, UI_HZ
 from ..models import RobotState
 from ..storage import JsonStore
-from .theme import STYLE_SHEET
+from .theme import LIGHT_STYLE_SHEET, STYLE_SHEET
 from .widgets.plot import MultiLinePlot
 
 
 STATUS_COLORS = {"READY": "#66c9a4", "HOMING": "#e8b955", "ESTOP": "#d66c75", "TEACHING": "#7ab2f0"}
 CONTACT_COLORS = {"No Contact": "#66c9a4", "Contact": "#e8b955", "Wedged": "#e0845d"}
 HOMING_COLORS = {"pending": "#8c99ad", "in_progress": "#e8b955", "done": "#66c9a4", "failed": "#d66c75"}
+LIGHT_HOMING_COLORS = {"pending": "#667085", "in_progress": "#9a6700", "done": "#047857", "failed": "#b42318"}
 WORLD_COLORS = {"SimulationOnly": "#7ab2f0", "HardwareConnected": "#e8b955", "HardwareLive": "#66c9a4", "HybridMirror": "#b58cff"}
 HARDWARE_COLORS = {"Disconnected": "#8c99ad", "Mock": "#7ab2f0", "ROS graph": "#e8b955", "Connected": "#66c9a4", "Fault": "#d66c75"}
 AUTHORITY_COLORS = {"GUI": "#7ab2f0", "Joystick": "#e8b955", "Planner": "#b58cff", "TeachingDrag": "#66c9a4", "Safety": "#d66c75"}
+LIGHT_WORLD_COLORS = {"SimulationOnly": "#155eef", "HardwareConnected": "#9a6700", "HardwareLive": "#047857", "HybridMirror": "#7c3aed"}
+LIGHT_HARDWARE_COLORS = {"Disconnected": "#667085", "Mock": "#155eef", "ROS graph": "#9a6700", "Connected": "#047857", "Fault": "#b42318"}
+LIGHT_AUTHORITY_COLORS = {"GUI": "#155eef", "Joystick": "#9a6700", "Planner": "#7c3aed", "TeachingDrag": "#047857", "Safety": "#b42318"}
+LIGHT_STATUS_COLORS = {"READY": "#047857", "HOMING": "#9a6700", "ESTOP": "#b42318", "TEACHING": "#155eef"}
+LIGHT_CONTACT_COLORS = {"No Contact": "#047857", "Contact": "#9a6700", "Wedged": "#b54708"}
 
 
 class MainWindow(QMainWindow):
@@ -51,6 +59,7 @@ class MainWindow(QMainWindow):
         self.backend = backend
         self.store = store
         self.data_dir = data_dir
+        self.dark_theme = True
         self.setWindowTitle("Kitchen Arm Operator Console - Qt")
         self.resize(1360, 860)
         self.setStyleSheet(STYLE_SHEET)
@@ -116,6 +125,8 @@ class MainWindow(QMainWindow):
         self.tool_combo = QComboBox()
         self.tool_combo.addItems(TOOLS)
         self.tool_combo.currentTextChanged.connect(self._set_tool)
+        self.theme_button = QPushButton("Light")
+        self.theme_button.clicked.connect(self._toggle_theme)
         estop = QPushButton("E-STOP")
         estop.setObjectName("Danger")
         estop.clicked.connect(lambda: self.backend.set_estop(not self.state.snapshot()["estop"]))
@@ -135,6 +146,7 @@ class MainWindow(QMainWindow):
             layout.addWidget(label)
             layout.addWidget(widget)
         layout.addStretch(1)
+        layout.addWidget(self.theme_button)
         layout.addWidget(estop)
         return bar
 
@@ -143,22 +155,31 @@ class MainWindow(QMainWindow):
         label.setObjectName("Pill")
         return label
 
+    def _state_color(self, dark: dict[str, str], light: dict[str, str], key: str, default: str = "#e6ebf4") -> str:
+        return (dark if self.dark_theme else light).get(key, default)
+
     def _workbench_tab(self) -> QWidget:
         page = QWidget()
         layout = QHBoxLayout(page)
 
-        left, left_layout = self._panel("Live State")
-        left.setMinimumWidth(480)
+        left, left_layout = self._panel("Joint Command And State")
+        left.setMinimumWidth(440)
+        self._build_joint_command_panel(left_layout)
+        left_layout.addSpacing(8)
         self._build_joint_telemetry_panel(left_layout)
         left_layout.addSpacing(8)
         self._build_manual_operation_panel(left_layout)
 
-        center, center_layout = self._panel("Joint Command")
-        self._build_joint_command_panel(center_layout)
+        center, center_layout = self._panel("Scope And Visualization")
+        self._build_scope_visualization_panel(center_layout)
 
-        right, right_layout = self._panel("Waypoints And Teaching")
+        right, right_layout = self._panel("Workflow")
         right.setMinimumWidth(360)
         self._build_waypoint_panel(right_layout)
+        right_layout.addSpacing(8)
+        self._build_homing_summary_panel(right_layout)
+        right_layout.addSpacing(8)
+        self._build_tool_summary_panel(right_layout)
 
         layout.addWidget(left, 0)
         layout.addWidget(center, 1)
@@ -180,9 +201,19 @@ class MainWindow(QMainWindow):
         self.signal_combo = QComboBox()
         self.signal_combo.addItems(["Current", "Position", "Velocity"])
         layout.addWidget(self.signal_combo)
+
+    def _build_scope_visualization_panel(self, layout: QVBoxLayout) -> None:
         self.signal_plot = MultiLinePlot()
-        self.signal_plot.setMinimumHeight(180)
-        layout.addWidget(self.signal_plot, 1)
+        self.signal_plot.setMinimumHeight(260)
+        layout.addWidget(self.signal_plot, 0)
+        self.workbench_visualization_label = QLabel(
+            "RViz is currently managed as an external ROS2 process.\n\n"
+            "Next stage: stream RViz/offscreen simulation frames or a lightweight 3D viewport into this area."
+        )
+        self.workbench_visualization_label.setAlignment(Qt.AlignCenter)
+        self.workbench_visualization_label.setWordWrap(True)
+        self.workbench_visualization_label.setObjectName("Pill")
+        layout.addWidget(self.workbench_visualization_label, 1)
 
     def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel("Control source"))
@@ -192,6 +223,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.joystick_label)
         layout.addWidget(self.control_source_label)
         layout.addWidget(self.data_source_label)
+        authority_row = QHBoxLayout()
+        gui_authority = QPushButton("Use GUI")
+        gui_authority.clicked.connect(lambda: self.backend.request_control_authority("GUI"))
+        joy_authority = QPushButton("Use Joystick")
+        joy_authority.clicked.connect(lambda: self.backend.request_control_authority("Joystick"))
+        authority_row.addWidget(gui_authority)
+        authority_row.addWidget(joy_authority)
+        layout.addLayout(authority_row)
         mode_row = QHBoxLayout()
         self.cartesian_radio = QRadioButton("Cartesian")
         self.joint_radio = QRadioButton("Joint")
@@ -260,7 +299,7 @@ class MainWindow(QMainWindow):
         self.waypoint_list = QListWidget()
         layout.addWidget(self.waypoint_list, 1)
         buttons = QHBoxLayout()
-        preview = QPushButton("Preview")
+        preview = QPushButton("Preview (Sim)")
         preview.clicked.connect(self._preview_selected_waypoint)
         execute = QPushButton("Plan/Execute")
         execute.clicked.connect(self._execute_selected_waypoint)
@@ -295,6 +334,22 @@ class MainWindow(QMainWindow):
         rec_buttons.addWidget(save_rec)
         rec_buttons.addWidget(clear_rec)
         layout.addLayout(rec_buttons)
+
+    def _build_homing_summary_panel(self, layout: QVBoxLayout) -> None:
+        layout.addWidget(QLabel("Homing"))
+        self.workbench_homing_summary = self._pill("not homed")
+        layout.addWidget(self.workbench_homing_summary)
+        start = QPushButton("Start Homing")
+        start.clicked.connect(self.backend.start_homing)
+        layout.addWidget(start)
+
+    def _build_tool_summary_panel(self, layout: QVBoxLayout) -> None:
+        layout.addWidget(QLabel("Tool"))
+        self.workbench_tool_summary = self._pill("Tool: --")
+        identify = QPushButton("Identify Selected Tool")
+        identify.clicked.connect(self._identify_tool)
+        layout.addWidget(self.workbench_tool_summary)
+        layout.addWidget(identify)
 
     def _monitor_tab(self) -> QWidget:
         page = QWidget()
@@ -546,26 +601,30 @@ class MainWindow(QMainWindow):
     def refresh(self) -> None:
         snap = self.state.snapshot()
         self.status_label.setText(snap["status"])
-        self.status_label.setStyleSheet(f"color: {STATUS_COLORS.get(snap['status'], '#e6ebf4')};")
+        self.status_label.setStyleSheet(f"color: {self._state_color(STATUS_COLORS, LIGHT_STATUS_COLORS, snap['status'])};")
         self.world_label.setText(f"World: {snap['world']}")
-        self.world_label.setStyleSheet(f"color: {WORLD_COLORS.get(snap['world'], '#e6ebf4')};")
+        self.world_label.setStyleSheet(f"color: {self._state_color(WORLD_COLORS, LIGHT_WORLD_COLORS, snap['world'])};")
         self.hardware_label.setText(f"Hardware: {snap['hardware']}")
-        self.hardware_label.setStyleSheet(f"color: {HARDWARE_COLORS.get(snap['hardware'], '#e6ebf4')};")
+        self.hardware_label.setStyleSheet(f"color: {self._state_color(HARDWARE_COLORS, LIGHT_HARDWARE_COLORS, snap['hardware'])};")
         homing_text = "homed" if snap["homed"] else ("homing" if snap["homing_active"] else "not homed")
         self.homing_state_label.setText(f"Homing: {homing_text}")
-        self.homing_state_label.setStyleSheet(f"color: {'#66c9a4' if snap['homed'] else ('#e8b955' if snap['homing_active'] else '#8c99ad')};")
+        homing_color = ("#66c9a4" if self.dark_theme else "#047857") if snap["homed"] else (("#e8b955" if self.dark_theme else "#9a6700") if snap["homing_active"] else ("#8c99ad" if self.dark_theme else "#667085"))
+        self.homing_state_label.setStyleSheet(f"color: {homing_color};")
+        if hasattr(self, "workbench_homing_summary"):
+            self.workbench_homing_summary.setText(homing_text)
+            self.workbench_homing_summary.setStyleSheet(f"color: {homing_color};")
         self.authority_label.setText(f"Authority: {snap['control_source']}")
-        self.authority_label.setStyleSheet(f"color: {AUTHORITY_COLORS.get(snap['control_source'], '#e6ebf4')};")
+        self.authority_label.setStyleSheet(f"color: {self._state_color(AUTHORITY_COLORS, LIGHT_AUTHORITY_COLORS, snap['control_source'])};")
         self.backend_label.setText(f"{snap['backend']} {'connected' if snap['connected'] else 'disconnected'}")
         self.contact_label.setText(snap["contact"])
-        self.contact_label.setStyleSheet(f"color: {CONTACT_COLORS.get(snap['contact'], '#e6ebf4')};")
+        self.contact_label.setStyleSheet(f"color: {self._state_color(CONTACT_COLORS, LIGHT_CONTACT_COLORS, snap['contact'])};")
         joystick_text = "Joystick: active" if snap["joystick_active"] else ("Joystick: connected" if snap["joystick_connected"] else "Joystick: not connected")
         self.joystick_label.setText(joystick_text)
-        self.joystick_label.setStyleSheet(f"color: {'#66c9a4' if snap['joystick_connected'] else '#8c99ad'};")
+        self.joystick_label.setStyleSheet(f"color: {('#66c9a4' if self.dark_theme else '#047857') if snap['joystick_connected'] else ('#8c99ad' if self.dark_theme else '#667085')};")
         self.control_source_label.setText(f"Active: {snap['control_source']}")
-        self.control_source_label.setStyleSheet(f"color: {'#e8b955' if snap['control_source'] == 'Joystick' else '#7ab2f0'};")
+        self.control_source_label.setStyleSheet(f"color: {self._state_color(AUTHORITY_COLORS, LIGHT_AUTHORITY_COLORS, snap['control_source'])};")
         self.data_source_label.setText(f"Data: {snap['data_source']}")
-        self.data_source_label.setStyleSheet(f"color: {'#66c9a4' if snap['data_source'] == 'real_teaching' else '#7ab2f0'};")
+        self.data_source_label.setStyleSheet(f"color: {('#66c9a4' if self.dark_theme else '#047857') if snap['data_source'] == 'real_teaching' else ('#7ab2f0' if self.dark_theme else '#155eef')};")
         self._set_combo_silent(self.mode_combo, snap["mode"])
         self._set_combo_silent(self.tool_combo, snap["tool"])
 
@@ -580,7 +639,7 @@ class MainWindow(QMainWindow):
                 item.setText(value)
                 item.setTextAlignment(Qt.AlignCenter)
                 if col == 5:
-                    item.setForeground(Qt.green if value == "OK" else Qt.yellow)
+                    item.setForeground(QColor(("#047857" if not self.dark_theme else "#66c9a4") if value == "OK" else ("#9a6700" if not self.dark_theme else "#e8b955")))
             slider = self.manual_sliders[joint]
             if not slider.isSliderDown():
                 slider.setValue(int(js.position * 1000))
@@ -595,13 +654,17 @@ class MainWindow(QMainWindow):
         self.step_plot.set_series(snap["step_history"])
 
         self.teaching_mode_label.setText("Teaching: active" if snap["teaching_active"] else "Teaching: inactive")
-        self.teaching_mode_label.setStyleSheet(f"color: {'#66c9a4' if snap['teaching_active'] else '#8c99ad'};")
+        self.teaching_mode_label.setStyleSheet(
+            f"color: {('#66c9a4' if self.dark_theme else '#047857') if snap['teaching_active'] else ('#8c99ad' if self.dark_theme else '#667085')};"
+        )
         self.recording_label.setText(("Recording" if snap["recording"] else "Recording: inactive") + f" - {snap['recorded_count']} points")
         for step, status in snap["homing_steps"].items():
             if step in self.homing_labels:
                 label = self.homing_labels[step]
                 label.setText(status)
-                label.setStyleSheet(f"color: {HOMING_COLORS.get(status, '#e6ebf4')};")
+                label.setStyleSheet(
+                    f"color: {self._state_color(HOMING_COLORS, LIGHT_HOMING_COLORS, status)};"
+                )
 
         if snap["step_results"]:
             result = snap["step_results"]
@@ -630,11 +693,22 @@ class MainWindow(QMainWindow):
         self.refresh()
 
     def _send_manual_target(self) -> None:
+        if not self._gui_command_allowed():
+            return
         self.backend.send_joint_target(self.manual_joint.currentText(), self.manual_target.value())
 
     def _preview_slider_pose(self) -> None:
+        if not self._gui_command_allowed():
+            return
         targets = {joint: slider.value() / 1000.0 for joint, slider in self.manual_sliders.items()}
         self.backend.preview_joint_targets(targets)
+
+    def _gui_command_allowed(self) -> bool:
+        if self.state.snapshot()["control_source"] == "Joystick":
+            self.state.log("GUI command blocked while joystick authority is active", "WARN")
+            self.refresh()
+            return False
+        return True
 
     def _save_waypoint(self) -> None:
         name = self.wp_name.text().strip()
@@ -655,17 +729,18 @@ class MainWindow(QMainWindow):
         self.refresh()
 
     def _refresh_waypoints(self, snap: dict) -> None:
-        selected = self.waypoint_list.currentItem().text().split("  ")[0] if self.waypoint_list.currentItem() else ""
+        selected = self._selected_waypoint_name()
         self.waypoint_list.clear()
-        for name, wp in snap["waypoints"].items():
-            self.waypoint_list.addItem(f"{name}  -  {wp.get('desc', '')}")
-        matches = self.waypoint_list.findItems(selected, Qt.MatchStartsWith) if selected else []
-        if matches:
-            self.waypoint_list.setCurrentItem(matches[0])
+        for index, (name, wp) in enumerate(snap["waypoints"].items(), start=1):
+            item = QListWidgetItem(f"{index}. {name}  -  {wp.get('desc', '')}")
+            item.setData(Qt.UserRole, name)
+            self.waypoint_list.addItem(item)
+            if name == selected:
+                self.waypoint_list.setCurrentItem(item)
 
     def _selected_waypoint_name(self) -> str:
         item = self.waypoint_list.currentItem()
-        return item.text().split("  ")[0] if item else ""
+        return item.data(Qt.UserRole) if item else ""
 
     def _selected_waypoint_targets(self) -> dict[str, float]:
         name = self._selected_waypoint_name()
@@ -679,6 +754,8 @@ class MainWindow(QMainWindow):
         targets = self._selected_waypoint_targets()
         if not targets:
             return
+        if not self._gui_command_allowed():
+            return
         self.backend.preview_joint_targets(targets)
         self.state.log(f"Waypoint preview sent: {name}")
         self.refresh()
@@ -687,6 +764,8 @@ class MainWindow(QMainWindow):
         name = self._selected_waypoint_name()
         targets = self._selected_waypoint_targets()
         if not targets:
+            return
+        if not self._gui_command_allowed():
             return
         self.backend.execute_joint_targets(targets)
         self.state.log(f"Waypoint plan/execute sent: {name}")
@@ -751,11 +830,22 @@ class MainWindow(QMainWindow):
             self.tool_list.addItem(f"{name}  mass={info.get('mass', '--')} kg  residual={info.get('residual', '--')}")
         info = snap["tools"].get(self.tool_id_combo.currentText(), {})
         self.tool_info.setText(f"Mass: {info.get('mass', '--')} kg\nCOM: {info.get('com', '--')}\nResidual: {info.get('residual', '--')} Nm")
+        if hasattr(self, "workbench_tool_summary"):
+            self.workbench_tool_summary.setText(f"{self.tool_id_combo.currentText()}  mass={info.get('mass', '--')} kg")
 
     def _clear_logs(self) -> None:
         with self.state.lock:
             self.state.logs.clear()
         self.state.log("Log cleared")
+        self.refresh()
+
+    def _toggle_theme(self) -> None:
+        self.dark_theme = not self.dark_theme
+        self.setStyleSheet(STYLE_SHEET if self.dark_theme else LIGHT_STYLE_SHEET)
+        self.theme_button.setText("Light" if self.dark_theme else "Dark")
+        for plot in [getattr(self, "signal_plot", None), getattr(self, "step_plot", None)]:
+            if plot is not None:
+                plot.set_theme(not self.dark_theme)
         self.refresh()
 
 

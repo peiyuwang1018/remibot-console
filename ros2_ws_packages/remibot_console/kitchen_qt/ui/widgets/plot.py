@@ -13,6 +13,22 @@ class MultiLinePlot(QWidget):
         self.setMinimumHeight(280)
         self.series: dict[str, list[float]] = {}
         self.colors = ["#5b8bd7", "#66c9a4", "#e8b955", "#d66c75", "#a58de8"]
+        self.background = "#121821"
+        self.grid = "#2e3a4d"
+        self.text = "#8c99ad"
+
+    def set_theme(self, light: bool) -> None:
+        if light:
+            self.background = "#ffffff"
+            self.grid = "#d8e0eb"
+            self.text = "#667085"
+            self.colors = ["#155eef", "#047857", "#9a6700", "#b42318", "#7c3aed"]
+        else:
+            self.background = "#121821"
+            self.grid = "#2e3a4d"
+            self.text = "#8c99ad"
+            self.colors = ["#5b8bd7", "#66c9a4", "#e8b955", "#d66c75", "#a58de8"]
+        self.update()
 
     def set_series(self, series: dict[str, list[float]]) -> None:
         self.series = series
@@ -23,8 +39,8 @@ class MultiLinePlot(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = self.rect().adjusted(14, 12, -14, -18)
-        painter.fillRect(self.rect(), QColor("#121821"))
-        painter.setPen(QPen(QColor("#2e3a4d"), 1))
+        painter.fillRect(self.rect(), QColor(self.background))
+        painter.setPen(QPen(QColor(self.grid), 1))
         painter.drawRoundedRect(rect, 7, 7)
 
         for i in range(1, 5):
@@ -32,7 +48,7 @@ class MultiLinePlot(QWidget):
             painter.drawLine(rect.left(), int(y), rect.right(), int(y))
 
         if not self.series:
-            painter.setPen(QColor("#8c99ad"))
+            painter.setPen(QColor(self.text))
             painter.drawText(rect, Qt.AlignCenter, "No signal")
             return
 

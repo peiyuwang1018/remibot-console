@@ -59,6 +59,13 @@ class MockBackend(ArmBackend):
         self.state.log(f"Control mode requested: {mode}")
         self.state_changed.emit()
 
+    def request_control_authority(self, source: str) -> None:
+        with self.state.lock:
+            self.state.control_source = source
+            self.state.joystick_active = source == "Joystick"
+        self.state.log(f"Control authority switched to {source}")
+        self.state_changed.emit()
+
     def start_homing(self) -> None:
         with self.state.lock:
             if self.state.estop:

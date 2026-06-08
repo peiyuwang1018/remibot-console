@@ -111,3 +111,115 @@ QSlider::handle:horizontal {
     background: #66c9a4;
 }
 """
+
+LIGHT_STYLE_SHEET = """
+QWidget {
+    background: #f4f6f8;
+    color: #202938;
+    font-family: "Segoe UI", "Microsoft YaHei", "Noto Sans", sans-serif;
+    font-size: 14px;
+}
+QLabel {
+    background: transparent;
+}
+QMainWindow, QDialog {
+    background: #f4f6f8;
+}
+QFrame#TopBar, QFrame#Panel {
+    background: #ffffff;
+    border: 1px solid #cfd7e3;
+    border-radius: 8px;
+}
+QLabel#SectionTitle {
+    background: transparent;
+    color: #42526b;
+    font-size: 15px;
+    font-weight: 600;
+}
+QLabel#Muted {
+    background: transparent;
+    color: #697589;
+}
+QLabel#Pill {
+    background: #eef3f8;
+    border: 1px solid #cbd6e4;
+    border-radius: 6px;
+    padding: 5px 9px;
+}
+QPushButton {
+    background: #256fb8;
+    border: 1px solid #1d5d9c;
+    border-radius: 7px;
+    color: #ffffff;
+    padding: 7px 12px;
+    min-height: 24px;
+}
+QPushButton:hover {
+    background: #2f7fcf;
+}
+QPushButton:pressed {
+    background: #19558f;
+}
+QPushButton#Danger {
+    background: #c94852;
+    border-color: #a93841;
+}
+QPushButton#Danger:hover {
+    background: #d95a63;
+}
+QComboBox, QLineEdit, QDoubleSpinBox, QSpinBox {
+    background: #ffffff;
+    border: 1px solid #cbd6e4;
+    border-radius: 6px;
+    padding: 5px 8px;
+    selection-background-color: #2f7fcf;
+}
+QComboBox::drop-down {
+    border: 0;
+    width: 24px;
+}
+QTabWidget::pane {
+    border: 1px solid #cfd7e3;
+    border-radius: 8px;
+    top: -1px;
+}
+QTabBar::tab {
+    background: #e9eef5;
+    border: 1px solid #cfd7e3;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 8px 14px;
+    margin-right: 2px;
+    color: #42526b;
+}
+QTabBar::tab:selected {
+    background: #256fb8;
+    color: #ffffff;
+}
+QTableWidget, QTextEdit, QListWidget {
+    background: #ffffff;
+    alternate-background-color: #f2f5f9;
+    border: 1px solid #cfd7e3;
+    border-radius: 7px;
+    gridline-color: #d8e0eb;
+}
+QHeaderView::section {
+    background: #eef3f8;
+    color: #344054;
+    border: 0;
+    border-right: 1px solid #d8e0eb;
+    padding: 7px;
+}
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #d6dee9;
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    width: 16px;
+    margin: -5px 0;
+    border-radius: 8px;
+    background: #2f9e7e;
+}
+"""

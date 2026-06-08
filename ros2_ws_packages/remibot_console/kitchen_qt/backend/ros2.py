@@ -100,6 +100,16 @@ class Ros2Backend(ArmBackend):
     def request_mode(self, mode: str) -> None:
         self._todo(f"call /mode_request: {mode}")
 
+    def request_control_authority(self, source: str) -> None:
+        with self.state.lock:
+            self.state.control_source = source
+            if source == "Joystick":
+                self.state.joystick_connected = True
+        self.state.log(f"Control authority requested: {source}")
+        if source == "Joystick":
+            self.state.log("Joystick authority requires joy_arm_control or an arbitration node to be running", "WARN")
+        self.state_changed.emit()
+
     def start_homing(self) -> None:
         self._todo("call /homing/start")
 

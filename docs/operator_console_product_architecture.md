@@ -317,6 +317,20 @@ Initial implementation status:
 - Added a first-position `Workbench` tab.
 - The Workbench combines live joint telemetry, signal plot, control-source indicators, joint sliders, waypoint save/list/preview/execute, and teaching recording controls.
 - Detailed Homing, PID/tuning, tools, visualization notes, and logs remain as secondary tabs.
+- The workbench now prioritizes joint sliders and wide telemetry plots in the main view instead of making the scope a narrow side element.
+- Theme switching is supported so the operator can use a light daytime style or dark style.
+- The current Workbench layout is organized as:
+  - left: joint command, live joint state, and active control-source selection
+  - center: oscilloscope above a visualization host area
+  - right: numbered waypoints, teaching capture, homing summary, and tool summary
+- Light theme now uses higher-contrast state colors and a light oscilloscope canvas instead of keeping a dark plot inside a bright UI.
+
+RViz display integration plan:
+
+- Short term: keep RViz as a separately managed bringup process and show its status in the console.
+- Medium term: stream RViz/offscreen simulation/camera frames into a Qt image widget.
+- Long term: build a C++ Qt/RViz bridge or a lightweight native 3D viewport for embedded visualization.
+- Avoid brittle X11 window reparenting except for temporary debugging experiments.
 
 ### Milestone 3: Teaching Mode
 

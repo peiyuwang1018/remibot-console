@@ -30,6 +30,10 @@ class ArmBackend(QObject):
         raise NotImplementedError
 
     @abstractmethod
+    def request_control_authority(self, source: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def start_homing(self) -> None:
         raise NotImplementedError
 

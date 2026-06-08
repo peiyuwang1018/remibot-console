@@ -207,3 +207,5 @@ Run full system:
 ```
 
 The full-system wrapper starts `joy_arm_control.py` explicitly for hardware/joystick sessions. For GUI-only simulation preview, prefer the launch command above with `start_joy_control` left at its default `false`.
+
+In the GUI, use `Use GUI` or `Use Joystick` to mark the intended control authority. When joystick authority is active, GUI slider and waypoint commands are blocked. This is a UI-level guard; the long-term control authority should be enforced by a ROS2 arbitration/lifecycle node.
