@@ -1,6 +1,9 @@
 <mujoco model="kitchen_arm">
   <compiler angle="radian"/>
   <option gravity="0 0 -9.81"/>
+  <visual>
+    <global offwidth="960" offheight="540"/>
+  </visual>
 
   <asset>
     <mesh name="base_link" content_type="model/stl" file="meshes/base_link.STL"/>
