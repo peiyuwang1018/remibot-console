@@ -251,8 +251,8 @@ class MainWindow(QMainWindow):
 
     def _build_scope_visualization_panel(self, layout: QVBoxLayout) -> None:
         self.signal_plot = MultiLinePlot()
-        self.signal_plot.setMinimumHeight(180)
-        self.signal_plot.setMaximumHeight(230)
+        self.signal_plot.setMinimumHeight(210)
+        self.signal_plot.setMaximumHeight(260)
         layout.addWidget(self.signal_plot, 0)
         mode_row = QHBoxLayout()
         mode_row.addWidget(QLabel("View"))

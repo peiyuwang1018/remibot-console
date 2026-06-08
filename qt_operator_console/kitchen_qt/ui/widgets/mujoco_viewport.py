@@ -19,6 +19,7 @@ class MujocoViewport(QWidget):
 
     def __init__(self, mjcf_path: str | None, width: int = 960, height: int = 540) -> None:
         super().__init__()
+        self.setMinimumHeight(360)
         self.mjcf_path = str(Path(mjcf_path).expanduser()) if mjcf_path else None
         self.render_width = width
         self.render_height = height
@@ -34,7 +35,7 @@ class MujocoViewport(QWidget):
         self.image_label = QLabel()
         self.image_label.setObjectName("VisualizationFrame")
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(320, 240)
+        self.image_label.setMinimumSize(300, 210)
         self.image_label.setScaledContents(False)
 
         self.status_label = QLabel()

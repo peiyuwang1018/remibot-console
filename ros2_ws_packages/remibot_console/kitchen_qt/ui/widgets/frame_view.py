@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 class FrameView(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setMinimumHeight(420)
+        self.setMinimumHeight(360)
         self.placeholder = "Waiting for visualization image stream"
         self.image_label = QLabel(self.placeholder)
         self.image_label.setAlignment(Qt.AlignCenter)
