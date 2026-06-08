@@ -7,7 +7,7 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QLabel, QStackedLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget
 
 from ...config import JOINTS, ROS_JOINT_NAMES
 from ...models import JointState
@@ -38,6 +38,7 @@ class MujocoViewport(QWidget):
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setMinimumSize(280, 180)
         self.image_label.setScaledContents(False)
+        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.status_label = QLabel()
         self.status_label.setObjectName("Pill")
@@ -152,7 +153,7 @@ class MujocoViewport(QWidget):
         image = QImage(pixels.data, width, height, bytes_per_line, QImage.Format_RGB888).copy()
         pixmap = QPixmap.fromImage(image).scaled(
             self.image_label.size(),
-            Qt.KeepAspectRatio,
+            Qt.KeepAspectRatioByExpanding,
             Qt.SmoothTransformation,
         )
         self.image_label.setPixmap(pixmap)

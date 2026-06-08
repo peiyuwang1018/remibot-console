@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 
 class FrameView(QWidget):
@@ -17,6 +17,7 @@ class FrameView(QWidget):
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setWordWrap(True)
         self.image_label.setObjectName("VisualizationFrame")
+        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.pixmap: QPixmap | None = None
 
         layout = QVBoxLayout(self)
@@ -44,7 +45,7 @@ class FrameView(QWidget):
             return
         scaled = self.pixmap.scaled(
             self.image_label.size(),
-            Qt.KeepAspectRatio,
+            Qt.KeepAspectRatioByExpanding,
             Qt.SmoothTransformation,
         )
         self.image_label.setPixmap(scaled)
