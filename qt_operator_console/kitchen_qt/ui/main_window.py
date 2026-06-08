@@ -89,9 +89,7 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._workbench_tab(), "Workbench")
-        self.tabs.addTab(self._homing_tab(), "Homing")
         self.tabs.addTab(self._tuning_tab(), "Motors and Tuning")
-        self.tabs.addTab(self._tools_tab(), "Tools")
         self.tabs.addTab(self._visualization_tab(), "Visualization")
         self.tabs.addTab(self._logs_tab(), "Logs")
         layout.addWidget(self.tabs, 1)
@@ -896,7 +894,8 @@ class MainWindow(QMainWindow):
             )
 
     def _identify_tool(self) -> None:
-        self.backend.identify_tool(self.tool_id_combo.currentText())
+        tool = self.tool_id_combo.currentText() if hasattr(self, "tool_id_combo") else self.state.snapshot()["tool"]
+        self.backend.identify_tool(tool)
         self.store.save_tools(self.state)
         self.refresh()
 
@@ -906,11 +905,13 @@ class MainWindow(QMainWindow):
         self.refresh()
 
     def _refresh_tools(self, snap: dict) -> None:
-        self.tool_list.clear()
-        for name, info in snap["tools"].items():
-            self.tool_list.addItem(f"{name}  mass={info.get('mass', '--')} kg  residual={info.get('residual', '--')}")
-        info = snap["tools"].get(self.tool_id_combo.currentText(), {})
-        self.tool_info.setText(f"Mass: {info.get('mass', '--')} kg\nCOM: {info.get('com', '--')}\nResidual: {info.get('residual', '--')} Nm")
+        if hasattr(self, "tool_list"):
+            self.tool_list.clear()
+            for name, info in snap["tools"].items():
+                self.tool_list.addItem(f"{name}  mass={info.get('mass', '--')} kg  residual={info.get('residual', '--')}")
+        if hasattr(self, "tool_info") and hasattr(self, "tool_id_combo"):
+            info = snap["tools"].get(self.tool_id_combo.currentText(), {})
+            self.tool_info.setText(f"Mass: {info.get('mass', '--')} kg\nCOM: {info.get('com', '--')}\nResidual: {info.get('residual', '--')} Nm")
         if hasattr(self, "workbench_tool_summary"):
             current_info = snap["tools"].get(snap["tool"], {})
             self.workbench_tool_summary.setText(
