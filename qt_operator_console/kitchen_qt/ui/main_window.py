@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self.mjcf_path = mjcf_path
         self.dark_theme = True
         self.setWindowTitle("Kitchen Arm Operator Console - Qt")
-        self.resize(1360, 860)
+        self._apply_window_geometry()
         self.setStyleSheet(STYLE_SHEET)
 
         self.backend.state_changed.connect(self.refresh)
@@ -76,6 +76,20 @@ class MainWindow(QMainWindow):
 
         self._build()
         self.backend.start()
+
+    def _apply_window_geometry(self) -> None:
+        screen = QApplication.primaryScreen()
+        if screen is None:
+            self.setMinimumSize(1280, 720)
+            self.resize(1440, 840)
+            return
+        available = screen.availableGeometry()
+        desired_w = min(1680, max(1180, int(available.width() * 0.92)))
+        desired_h = min(940, max(680, int(available.height() * 0.92)))
+        min_w = min(desired_w, max(1100, int(available.width() * 0.70)))
+        min_h = min(desired_h, max(640, int(available.height() * 0.70)))
+        self.setMinimumSize(min_w, min_h)
+        self.resize(desired_w, desired_h)
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt API
         self.backend.stop()
@@ -250,9 +264,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.signal_combo)
 
     def _build_scope_visualization_panel(self, layout: QVBoxLayout) -> None:
+        layout.setAlignment(Qt.AlignTop)
         self.signal_plot = MultiLinePlot()
-        self.signal_plot.setMinimumHeight(210)
-        self.signal_plot.setMaximumHeight(260)
+        self.signal_plot.setMinimumHeight(260)
+        self.signal_plot.setMaximumHeight(340)
         layout.addWidget(self.signal_plot, 0)
         mode_row = QHBoxLayout()
         mode_row.addWidget(QLabel("View"))
