@@ -2,7 +2,7 @@
   <compiler angle="radian"/>
   <option gravity="0 0 -9.81"/>
   <visual>
-    <global offwidth="960" offheight="540"/>
+    <global offwidth="960" offheight="960"/>
   </visual>
 
   <asset>

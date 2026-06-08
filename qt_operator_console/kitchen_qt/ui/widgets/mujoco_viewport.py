@@ -17,10 +17,12 @@ from .frame_view import FrameView
 class MujocoViewport(QWidget):
     """Render an MJCF model directly in Qt, with image-stream fallback."""
 
-    def __init__(self, mjcf_path: str | None, width: int = 960, height: int = 540) -> None:
+    def __init__(self, mjcf_path: str | None, width: int = 960, height: int = 960) -> None:
         super().__init__()
-        self.setMinimumHeight(220)
-        self.setMaximumHeight(340)
+        self.setMinimumHeight(420)
+        size_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        size_policy.setHeightForWidth(True)
+        self.setSizePolicy(size_policy)
         self.mjcf_path = str(Path(mjcf_path).expanduser()) if mjcf_path else None
         self.render_width = width
         self.render_height = height
@@ -36,7 +38,7 @@ class MujocoViewport(QWidget):
         self.image_label = QLabel()
         self.image_label.setObjectName("VisualizationFrame")
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(280, 180)
+        self.image_label.setMinimumSize(320, 320)
         self.image_label.setScaledContents(False)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -79,6 +81,12 @@ class MujocoViewport(QWidget):
     @property
     def is_active(self) -> bool:
         return self.renderer is not None and self.model is not None and self.data is not None
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802 - Qt API
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt API
+        return max(420, width + self.status_label.sizeHint().height() + 6)
 
     def set_joint_states(self, joints: dict[str, JointState]) -> None:
         for joint in JOINTS:
@@ -158,3 +166,9 @@ class MujocoViewport(QWidget):
         )
         self.image_label.setPixmap(pixmap)
         self.status_label.setText(self.status)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        width = self.image_label.width()
+        if width > 0 and self.image_label.height() != width:
+            self.image_label.setFixedHeight(width)
