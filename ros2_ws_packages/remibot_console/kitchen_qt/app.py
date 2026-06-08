@@ -9,7 +9,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from .backend import MockBackend, Ros2Backend
-from .config import DEFAULT_DATA_DIR
+from .config import DEFAULT_DATA_DIR, find_mjcf
 from .models import RobotState
 from .storage import JsonStore
 from .ui import MainWindow
@@ -19,6 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Kitchen arm Qt operator console")
     parser.add_argument("--backend", choices=["mock", "ros2"], default="mock")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    parser.add_argument("--mjcf", type=Path, default=None, help="Optional MuJoCo MJCF model path")
     return parser
 
 
@@ -28,6 +29,11 @@ def main(argv: list[str] | None = None) -> int:
     state = RobotState()
     store = JsonStore(args.data_dir)
     store.load_all(state)
+    mjcf_path = find_mjcf(args.mjcf, args.data_dir)
+    if mjcf_path:
+        state.log(f"MuJoCo MJCF configured: {mjcf_path}")
+    else:
+        state.log("MuJoCo MJCF not configured; visualization uses available fallback streams")
     backend = MockBackend(state) if args.backend == "mock" else Ros2Backend(state)
     window = MainWindow(state, backend, store, args.data_dir)
     window.show()

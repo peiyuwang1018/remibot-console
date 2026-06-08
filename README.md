@@ -29,6 +29,7 @@ The console is an upper-computer interface, not the final safety authority. Safe
   - PID history
   - teaching recordings
 - Mock backend for UI development without ROS2.
+- MJCF model path discovery for future MuJoCo viewport integration through `--mjcf`, `REMIBOT_MJCF`, or `data/config.yaml`.
 
 ## Repository Layout
 
@@ -61,6 +62,12 @@ Run the mock console:
 
 ```bash
 python kitchen_arm_gui.py --backend mock
+```
+
+Optional MJCF model path discovery:
+
+```bash
+python kitchen_arm_gui.py --backend mock --mjcf /path/to/remibot.xml
 ```
 
 Mock mode provides synthetic telemetry and a synthetic visualization frame. It is useful for UI work on Windows or on Ubuntu without a sourced ROS2 workspace.
@@ -206,11 +213,12 @@ remibot_console visualization_renderer
 
 ## Roadmap
 
-### Milestone 1: Native Visualization
+### Milestone 1: Embedded Simulation Viewport
 
-- Replace RViz window capture with a C++ Qt/RViz integration or offscreen RViz renderer.
-- Publish only the render panel or embed a native visualization widget rather than the whole RViz application window.
-- Reduce latency and remove dependence on external window capture.
+- Integrate a MuJoCo/offscreen viewport when an MJCF model is available.
+- Keep mock visualization available when MuJoCo is not installed.
+- Reduce dependence on RViz window capture for day-to-day operation.
+- Use C++ Qt/RViz integration only as a contingency if MuJoCo/offscreen rendering cannot cover the required debugging workflow.
 
 ### Milestone 2: Control Authority And Mode Manager
 
@@ -250,3 +258,4 @@ remibot_console visualization_renderer
 
 - `docs/ros2_bringup_integration.md`
 - `docs/operator_console_product_architecture.md`
+- `docs/master_development_plan.md`

@@ -1,0 +1,3 @@
+# Optional local configuration for Remibot Console.
+# Values in this file are defaults and can be overridden by CLI arguments or environment variables.
+mjcf_path:
