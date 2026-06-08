@@ -208,10 +208,10 @@ class MainWindow(QMainWindow):
         self._build_joint_command_panel(left_layout)
         self._build_joint_telemetry_panel(left_layout)
         self._build_manual_operation_panel(left_layout)
-        left_scroll = self._scroll_column(left, 360)
+        left_scroll = self._scroll_column(left, 400)
 
         center, center_layout = self._panel("Scope And Visualization")
-        center.setMinimumWidth(420)
+        center.setMinimumWidth(340)
         center.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._build_scope_visualization_panel(center_layout)
 
@@ -222,14 +222,14 @@ class MainWindow(QMainWindow):
         self._build_homing_summary_panel(right_layout)
         right_layout.addSpacing(8)
         self._build_tool_summary_panel(right_layout)
-        right_scroll = self._scroll_column(right, 330)
+        right_scroll = self._scroll_column(right, 400)
 
         layout.addWidget(left_scroll)
         layout.addWidget(center)
         layout.addWidget(right_scroll)
-        layout.setStretch(0, 1)
-        layout.setStretch(1, 4)
-        layout.setStretch(2, 1)
+        layout.setStretch(0, 2)
+        layout.setStretch(1, 3)
+        layout.setStretch(2, 2)
         return page
 
     def _build_joint_telemetry_panel(self, layout: QVBoxLayout) -> None:
