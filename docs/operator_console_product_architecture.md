@@ -342,7 +342,8 @@ Initial image-stream implementation:
   - `/camera/image_raw`
   - `/remibot/visualization/image/compressed`
   - `/rviz/rendered_image/compressed`
-- This is a frame-stream experiment, not true RViz embedding. A separate node still needs to publish rendered frames from RViz, a simulator, or a camera/offscreen renderer.
+- `remibot_console visualization_renderer` now publishes the first ROS2 image stream on `/remibot/visualization/image`.
+- The first renderer is a lightweight 2D joint-state preview, not true RViz embedding. It proves the frame-stream contract before replacing the renderer with RViz/offscreen simulation capture or a C++ bridge.
 
 Joint command limits:
 

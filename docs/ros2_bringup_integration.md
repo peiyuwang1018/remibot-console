@@ -222,4 +222,40 @@ The Workbench now contains a Qt image widget for rendered frames. This does not 
 /rviz/rendered_image/compressed
 ```
 
-To test the pipeline without a renderer, launch the GUI in mock mode; it emits a synthetic arm preview frame. To test with ROS2, publish a `sensor_msgs/Image` or `sensor_msgs/CompressedImage` on one of the topics above. If this proves useful, the next step is a dedicated renderer node that captures RViz/offscreen simulation frames and republishes them for the console.
+To test the GUI-only pipeline, launch the GUI in mock mode; it emits a synthetic arm preview frame.
+
+Implemented ROS2 renderer:
+
+```bash
+ros2 run remibot_console visualization_renderer
+```
+
+This lightweight node subscribes `/joint_states`, draws a simple 2D arm preview, and publishes:
+
+```text
+/remibot/visualization/image
+```
+
+Verify the image stream:
+
+```bash
+ros2 topic echo --once /remibot/visualization/image --field height
+ros2 topic echo --once /remibot/visualization/image --field width
+ros2 topic echo --once /remibot/visualization/image --field encoding
+```
+
+Expected values are `540`, `960`, and `rgb8`.
+
+The bringup launch starts this renderer by default:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py
+```
+
+Disable it when testing another renderer source:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py start_renderer:=false
+```
+
+This is still not true RViz embedding. It proves the image-stream contract. The next renderer can capture RViz/offscreen simulation frames or replace this Python preview with a C++ Qt/RViz bridge.

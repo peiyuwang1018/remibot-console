@@ -19,6 +19,7 @@ setup(
     entry_points={
         "console_scripts": [
             "kitchen_arm_gui = kitchen_qt.app:main",
+            "visualization_renderer = remibot_console.visualization_renderer:main",
         ],
     },
 )

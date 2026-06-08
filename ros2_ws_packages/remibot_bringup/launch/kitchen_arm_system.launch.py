@@ -97,6 +97,17 @@ def _system_actions(context, *_args, **_kwargs):
             ],
         ),
         TimerAction(
+            period=1.5,
+            actions=[
+                Node(
+                    package="remibot_console",
+                    executable="visualization_renderer",
+                    output="screen",
+                    condition=IfCondition(LaunchConfiguration("start_renderer")),
+                )
+            ],
+        ),
+        TimerAction(
             period=2.0,
             actions=[
                 Node(
@@ -124,6 +135,7 @@ def generate_launch_description():
             DeclareLaunchArgument("start_joint4_mapper", default_value="true"),
             DeclareLaunchArgument("start_joy_control", default_value="false"),
             DeclareLaunchArgument("start_scene", default_value="true"),
+            DeclareLaunchArgument("start_renderer", default_value="true"),
             DeclareLaunchArgument("start_gui", default_value="true"),
             OpaqueFunction(function=_system_actions),
         ]
