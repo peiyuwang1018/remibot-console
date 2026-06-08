@@ -220,12 +220,13 @@ In the GUI, use `Use GUI` or `Use Joystick` to mark the intended control authori
 
 The Workbench now provides a `3D MuJoCo` / `2D Fallback` selector. It prefers an embedded MuJoCo viewport when an MJCF model and the optional Python `mujoco` package are available. Configure the model with `--mjcf`, `REMIBOT_MJCF`, or `data/config.yaml`.
 
-On the current development machine, the console auto-detects:
+The repository ships a default model:
 
 ```text
-~/rl_ws/kitchen_arm_rl_v3.xml
-~/rl_ws/kitchen_arm_rl.xml
+assets/mujoco/kitchen_arm.xml
 ```
+
+The ROS2 package installs this model into `share/remibot_console/assets/mujoco/kitchen_arm.xml`, so launch-based usage does not need to depend on `~/rl_ws`.
 
 The ROS2 image widget remains available as a fallback. It subscribes image topics and displays the newest frame when `2D Fallback` is selected or when MuJoCo is inactive:
 

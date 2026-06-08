@@ -27,6 +27,10 @@ SPEED_LEVELS = {"Slow": 0.25, "Medium": 0.60, "Fast": 1.00}
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
+DEFAULT_MJCF_PATHS = [
+    PROJECT_ROOT / "assets" / "mujoco" / "kitchen_arm.xml",
+    Path(__file__).resolve().parents[1] / "assets" / "mujoco" / "kitchen_arm.xml",
+]
 TRAJECTORY_DIR = "teaching_data"
 CONFIG_FILE = "config.yaml"
 VISUALIZATION_IMAGE_TOPICS = [
@@ -63,6 +67,19 @@ def find_mjcf(cli_arg: str | Path | None = None, data_dir: Path = DEFAULT_DATA_D
     configured = config.get("mjcf_path")
     if configured:
         return str(Path(str(configured)).expanduser())
+
+    for bundled in DEFAULT_MJCF_PATHS:
+        if bundled.exists():
+            return str(bundled)
+
+    try:
+        from ament_index_python.packages import get_package_share_directory
+
+        share_mjcf = Path(get_package_share_directory("remibot_console")) / "assets" / "mujoco" / "kitchen_arm.xml"
+        if share_mjcf.exists():
+            return str(share_mjcf)
+    except Exception:
+        pass
 
     for candidate in [
         Path("~/rl_ws/kitchen_arm_rl_v3.xml").expanduser(),

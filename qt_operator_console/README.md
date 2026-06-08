@@ -49,6 +49,8 @@ python -m pip install -r requirements-mujoco.txt
 python qt_operator_console/run_qt_console.py --backend mock --mjcf /path/to/remibot.xml
 ```
 
+If `--mjcf` is omitted, the console uses the bundled model at `assets/mujoco/kitchen_arm.xml`.
+
 On Ubuntu/ROS2:
 
 ```bash

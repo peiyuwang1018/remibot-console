@@ -89,6 +89,7 @@ Adopted direction:
 The repository now includes `qt_operator_console/kitchen_qt/ui/widgets/mujoco_viewport.py`. It is an initial embedded viewport that:
 
 - loads an MJCF path discovered by `find_mjcf()`
+- uses the bundled `assets/mujoco/kitchen_arm.xml` model by default
 - renders with the optional Python `mujoco` package
 - maps `joint1` through `joint5` into `qpos` when those names exist in the MJCF
 - updates from the GUI's current joint state

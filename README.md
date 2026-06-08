@@ -42,6 +42,7 @@ ros2_ws_packages/remibot_console   # ROS2 Python package template
 ros2_ws_packages/remibot_bringup   # ROS2 launch package template
 ros2_ws_packages/start_remibot_system.sh
 data/                              # local operator data
+assets/mujoco/                     # bundled MJCF model and meshes
 docs/                              # architecture and bringup notes
 ```
 
@@ -103,12 +104,13 @@ Or use the wrapper script:
 ~/kitchen_arm_ws/start_remibot_system.sh
 ```
 
-On the current development machine, the console also auto-detects these existing MuJoCo models when no explicit path is provided:
+The repository includes a default MuJoCo model:
 
 ```text
-~/rl_ws/kitchen_arm_rl_v3.xml
-~/rl_ws/kitchen_arm_rl.xml
+assets/mujoco/kitchen_arm.xml
 ```
+
+This model is also installed into the ROS2 package share directory, so `ros2 run` and launch-based usage do not need to reach into another workspace.
 
 The wrapper keeps `joy_arm_control.py` disabled by default because continuous joystick command output can compete with GUI or MoveIt goals. Enable joystick command output only for joystick-control sessions:
 
@@ -157,6 +159,8 @@ or set `mjcf_path` in `data/config.yaml`:
 ```yaml
 mjcf_path: /path/to/remibot.xml
 ```
+
+If no explicit path is configured, the console uses the bundled model at `assets/mujoco/kitchen_arm.xml`.
 
 When the model and the optional `mujoco` Python package are available, the Workbench visualization area renders the MJCF model directly from the current joint state. If MuJoCo is missing or the MJCF path is invalid, the viewport shows a fallback placeholder and can still display image streams.
 
