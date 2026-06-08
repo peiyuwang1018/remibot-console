@@ -10,7 +10,7 @@ Target environments:
 
 - Development: Ubuntu with ROS2 Humble, optionally Windows for UI-only mock work.
 - Deployment: Jetson Orin Nano class device.
-- Simulation and visualization: RViz/MoveIt today, MuJoCo/offscreen rendering as the next serious viewport path.
+- Simulation and visualization: RViz/MoveIt for planning debug, MuJoCo/offscreen rendering as the primary in-window 3D viewport path.
 
 ## Decisions To Keep
 
@@ -69,7 +69,7 @@ Gravity compensation should not be implemented as a standalone button before a m
 
 ### Visualization Direction
 
-The brief recommends MuJoCo offscreen rendering and no C++ RViz work. The current project has already proven that RViz window capture works but has drawbacks:
+The product direction is to avoid a C++ RViz rewrite unless it becomes unavoidable. The current project has already proven that RViz window capture works but has drawbacks:
 
 - requires RViz to be open
 - captures the full window, not only the render panel
@@ -78,9 +78,11 @@ The brief recommends MuJoCo offscreen rendering and no C++ RViz work. The curren
 
 Adopted direction:
 
-- Short term: keep RViz capture as a debug bridge.
-- Next: integrate a MuJoCo/offscreen viewport if an MJCF model is available.
-- Contingency: use C++ Qt/RViz only if MuJoCo/offscreen cannot provide the needed development workflow.
+- Primary embedded 3D path: MuJoCo/offscreen rendering in the Qt window when an MJCF model is available.
+- RViz role: keep RViz external for MoveIt planning and desktop debugging.
+- Transitional bridge: keep RViz capture available but make it opt-in once MuJoCo is stable.
+- Jetson fallback: keep a lightweight 2D renderer with J1 top view, J2-J4 side view, and J5 roll view.
+- Contingency: use C++ Qt/RViz only if MuJoCo/offscreen cannot provide the required debugging workflow.
 
 ### Claimed Existing `mujoco_viewport.py`
 
@@ -118,6 +120,7 @@ Acceptance criteria:
 - `python kitchen_arm_gui.py --backend mock` still opens without MuJoCo installed.
 - With a valid MJCF path, the Workbench shows an embedded rendered model.
 - No RViz window capture is required for the embedded viewport.
+- RViz can still be launched externally for MoveIt debugging without being required by the Qt viewport.
 
 ### Task B: Oscilloscope
 
@@ -166,6 +169,7 @@ Current state:
 - `start_joy_control` defaults to false.
 - `start_rviz_capture` defaults to true as a bridge.
 - `start_renderer` defaults to false to avoid fighting RViz capture.
+- The fallback renderer publishes a separate three-view 2D image stream unless deliberately remapped.
 
 Future adjustment:
 

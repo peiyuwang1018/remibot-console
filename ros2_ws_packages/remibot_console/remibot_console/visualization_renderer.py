@@ -1,8 +1,8 @@
-"""Lightweight ROS2 image renderer for the operator console.
+"""Lightweight ROS2 fallback renderer for the operator console.
 
 This node is intentionally simple: it subscribes to /joint_states and publishes
-an RGB image stream that the Qt console can display. It is a proving step for
-the frame-stream architecture before introducing RViz/offscreen rendering.
+an RGB image stream that the Qt console can display. The rendering is split into
+three deployment-friendly views: J1 top view, J2-J4 side view, and J5 tool roll.
 """
 
 from __future__ import annotations
@@ -17,13 +17,20 @@ from sensor_msgs.msg import Image, JointState
 
 JOINT_NAMES = ["joint1", "joint2", "joint3", "joint4", "joint5"]
 LINK_LENGTHS = [92, 88, 72, 54, 34]
+BG = (31, 41, 55)
+PANEL = (45, 55, 72)
+GRID = (75, 85, 99)
+TEXT = (209, 213, 219)
+LINK = (102, 201, 164)
+JOINT = (232, 185, 85)
+TIP = (122, 178, 240)
 
 
 @dataclass
 class Canvas:
     width: int
     height: int
-    background: tuple[int, int, int] = (31, 41, 55)
+    background: tuple[int, int, int] = BG
     data: bytearray = field(init=False)
 
     def __post_init__(self) -> None:
@@ -68,6 +75,21 @@ class Canvas:
                 if (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r2:
                     self.pixel(x, y, color)
 
+    def circle(self, cx: int, cy: int, radius: int, color: tuple[int, int, int]) -> None:
+        last = None
+        for step in range(97):
+            a = 2.0 * math.pi * step / 96.0
+            point = (int(cx + radius * math.cos(a)), int(cy + radius * math.sin(a)))
+            if last is not None:
+                self.line(last[0], last[1], point[0], point[1], color)
+            last = point
+
+    def frame(self, x: int, y: int, w: int, h: int, color: tuple[int, int, int]) -> None:
+        self.line(x, y, x + w, y, color)
+        self.line(x + w, y, x + w, y + h, color)
+        self.line(x + w, y + h, x, y + h, color)
+        self.line(x, y + h, x, y, color)
+
 
 class ConsoleVisualizationRenderer(Node):
     def __init__(self) -> None:
@@ -100,10 +122,10 @@ class ConsoleVisualizationRenderer(Node):
 
     def _publish_frame(self) -> None:
         canvas = Canvas(self.width, self.height)
-        self._draw_grid(canvas)
-        self._draw_workspace(canvas)
-        self._draw_joint_bars(canvas)
-        self._draw_arm(canvas)
+        self._draw_layout(canvas)
+        self._draw_top_view(canvas)
+        self._draw_side_view(canvas)
+        self._draw_roll_view(canvas)
 
         msg = Image()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -116,39 +138,53 @@ class ConsoleVisualizationRenderer(Node):
         msg.data = bytes(canvas.data)
         self.publisher.publish(msg)
 
-    def _draw_grid(self, canvas: Canvas) -> None:
-        grid = (75, 85, 99)
-        for x in range(0, canvas.width, 60):
-            canvas.line(x, 0, x, canvas.height, grid)
-        for y in range(0, canvas.height, 60):
-            canvas.line(0, y, canvas.width, y, grid)
+    def _panels(self) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
+        margin = 18
+        gap = 14
+        top_h = self.height // 2 - margin - gap // 2
+        top_w = self.width // 2 - margin - gap // 2
+        roll_x = margin + top_w + gap
+        side_y = margin + top_h + gap
+        return (
+            (margin, margin, top_w, top_h),
+            (margin, side_y, self.width - 2 * margin, self.height - side_y - margin),
+            (roll_x, margin, self.width - roll_x - margin, top_h),
+        )
 
-    def _draw_workspace(self, canvas: Canvas) -> None:
-        canvas.rect(0, canvas.height - 86, canvas.width, 86, (45, 55, 72))
-        canvas.line(0, canvas.height - 86, canvas.width, canvas.height - 86, (148, 163, 184), 2)
-        canvas.rect(canvas.width // 2 - 90, canvas.height - 72, 180, 28, (55, 65, 81))
+    def _draw_layout(self, canvas: Canvas) -> None:
+        for panel in self._panels():
+            x, y, w, h = panel
+            canvas.rect(x, y, w, h, PANEL)
+            canvas.frame(x, y, w, h, GRID)
 
-    def _draw_joint_bars(self, canvas: Canvas) -> None:
-        x = 24
-        y = 28
-        for index, name in enumerate(JOINT_NAMES):
-            value = self.positions[name]
-            bar_y = y + index * 28
-            canvas.rect(x, bar_y, 132, 10, (55, 65, 81))
-            normalized = max(-1.0, min(1.0, value / math.pi))
-            fill = int((normalized + 1.0) * 66)
-            canvas.rect(x, bar_y, fill, 10, (102, 201, 164))
-            canvas.rect(x + 66, bar_y - 3, 2, 16, (209, 213, 219))
-
-    def _draw_arm(self, canvas: Canvas) -> None:
+    def _draw_top_view(self, canvas: Canvas) -> None:
         q = [self.positions[name] for name in JOINT_NAMES]
-        base_x = canvas.width // 2
-        base_y = canvas.height - 88
-        yaw_offset = 55 * math.sin(q[0])
-        points = [(base_x + int(yaw_offset), base_y)]
+        x, y, w, h = self._panels()[0]
+        cx = x + w // 2
+        cy = y + h // 2
+        radius = min(w, h) // 3
+        canvas.circle(cx, cy, radius, GRID)
+        canvas.line(cx - radius, cy, cx + radius, cy, GRID)
+        canvas.line(cx, cy - radius, cx, cy + radius, GRID)
+        angle = q[0] - math.pi / 2
+        tip_x = int(cx + radius * math.cos(angle))
+        tip_y = int(cy + radius * math.sin(angle))
+        canvas.line(cx, cy, tip_x, tip_y, LINK, 7)
+        canvas.disc(cx, cy, 11, JOINT)
+        canvas.disc(tip_x, tip_y, 9, TIP)
+        self._draw_value_bar(canvas, x + 22, y + h - 32, w - 44, q[0], -math.pi, math.pi)
+
+    def _draw_side_view(self, canvas: Canvas) -> None:
+        q = [self.positions[name] for name in JOINT_NAMES]
+        x, y, w, h = self._panels()[1]
+        base_x = x + 90
+        base_y = y + h - 52
+        canvas.line(x + 30, base_y, x + w - 30, base_y, GRID, 2)
+        canvas.rect(base_x - 38, base_y - 20, 76, 20, (55, 65, 81))
+        points = [(base_x, base_y - 20)]
         angle = -math.pi / 2
-        for index, length in enumerate(LINK_LENGTHS):
-            if index > 0:
+        for index, length in enumerate(LINK_LENGTHS[:4]):
+            if index:
                 angle += q[index] * (1 if index != 3 else -1)
             prev_x, prev_y = points[-1]
             x = int(prev_x + length * math.cos(angle))
@@ -156,17 +192,37 @@ class ConsoleVisualizationRenderer(Node):
             points.append((x, y))
 
         shadow = (17, 24, 39)
-        link = (102, 201, 164)
-        joint = (232, 185, 85)
-        tip = (122, 178, 240)
         for start, end in zip(points, points[1:]):
             canvas.line(start[0] + 4, start[1] + 5, end[0] + 4, end[1] + 5, shadow, 9)
         for start, end in zip(points, points[1:]):
-            canvas.line(start[0], start[1], end[0], end[1], link, 7)
+            canvas.line(start[0], start[1], end[0], end[1], LINK, 7)
         for x, y in points[:-1]:
-            canvas.disc(x, y, 10, joint)
-            canvas.disc(x, y, 4, (31, 41, 55))
-        canvas.disc(points[-1][0], points[-1][1], 9, tip)
+            canvas.disc(x, y, 10, JOINT)
+            canvas.disc(x, y, 4, BG)
+        canvas.disc(points[-1][0], points[-1][1], 9, TIP)
+
+    def _draw_roll_view(self, canvas: Canvas) -> None:
+        q5 = self.positions["joint5"]
+        x, y, w, h = self._panels()[2]
+        cx = x + w // 2
+        cy = y + h // 2
+        radius = min(w, h) // 4
+        canvas.circle(cx, cy, radius, GRID)
+        canvas.disc(cx, cy, 8, JOINT)
+        for offset in [0.0, math.pi]:
+            angle = q5 + offset
+            tip_x = int(cx + radius * math.cos(angle))
+            tip_y = int(cy + radius * math.sin(angle))
+            canvas.line(cx, cy, tip_x, tip_y, TIP, 5)
+            canvas.disc(tip_x, tip_y, 5, TIP)
+        self._draw_value_bar(canvas, x + 28, y + h - 36, w - 56, q5, -2.0 * math.pi, 2.0 * math.pi)
+
+    def _draw_value_bar(self, canvas: Canvas, x: int, y: int, w: int, value: float, lo: float, hi: float) -> None:
+        canvas.rect(x, y, w, 12, (55, 65, 81))
+        normalized = (max(lo, min(hi, value)) - lo) / (hi - lo)
+        canvas.rect(x, y, int(w * normalized), 12, LINK)
+        zero = int(x + w * ((0.0 - lo) / (hi - lo)))
+        canvas.rect(zero - 1, y - 3, 2, 18, TEXT)
 
 
 def main(args: list[str] | None = None) -> None:

@@ -260,11 +260,17 @@ Fallback 2D renderer:
 ros2 run remibot_console visualization_renderer
 ```
 
-This lightweight node subscribes `/joint_states`, draws a simple 2D arm preview, and publishes to a separate fallback topic by default:
+This lightweight node subscribes `/joint_states`, draws a three-view 2D arm preview, and publishes to a separate fallback topic by default:
 
 ```text
 /remibot/visualization/fallback_image
 ```
+
+The fallback frame is intended for low-cost deployment and degraded visualization modes:
+
+- J1 top view
+- J2-J3-J4 side view
+- J5 tool roll view
 
 Verify the fallback image stream:
 
@@ -291,7 +297,7 @@ ros2 run remibot_console visualization_renderer --ros-args \
   -p image_topic:=/remibot/visualization/image
 ```
 
-This is still not true RViz embedding. It is a real RViz window frame stream into Qt. If this capture path is too brittle on Wayland or multi-monitor setups, the next step is a C++ RViz/offscreen renderer or Qt/RViz bridge.
+This is still not true RViz embedding. It is a real RViz window frame stream into Qt. The preferred next step is a MuJoCo/offscreen viewport in Qt. A C++ Qt/RViz bridge is reserved as a contingency if MuJoCo cannot cover the required debugging workflow.
 
 ## Command Source Contention Notes
 

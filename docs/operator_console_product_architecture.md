@@ -327,9 +327,10 @@ Initial implementation status:
 
 RViz display integration plan:
 
-- Short term: keep RViz as a separately managed bringup process and show its status in the console.
+- Short term: keep RViz as a separately managed bringup process for MoveIt planning and show its status in the console.
 - Medium term: stream RViz/offscreen simulation/camera frames into a Qt image widget.
-- Long term: build a C++ Qt/RViz bridge or a lightweight native 3D viewport for embedded visualization.
+- Main embedded 3D direction: integrate a MuJoCo/offscreen viewport in Qt.
+- Contingency only: build a C++ Qt/RViz bridge if MuJoCo cannot satisfy the debugging workflow.
 - Avoid brittle X11 window reparenting except for temporary debugging experiments.
 
 Initial image-stream implementation:
@@ -343,8 +344,8 @@ Initial image-stream implementation:
   - `/remibot/visualization/image/compressed`
   - `/rviz/rendered_image/compressed`
 - `remibot_console rviz_capture_renderer` captures the real RViz window and publishes `/remibot/visualization/image`.
-- `remibot_console visualization_renderer` remains as a lightweight 2D joint-state fallback and publishes `/remibot/visualization/fallback_image` by default, so it cannot fight the RViz capture stream unless deliberately remapped.
-- RViz capture is a real frame stream into Qt, but it is not true RViz embedding. If this path is brittle on Wayland or multi-monitor setups, replace it with RViz/offscreen simulation capture or a C++ bridge.
+- `remibot_console visualization_renderer` remains as a lightweight 2D joint-state fallback and publishes `/remibot/visualization/fallback_image` by default, so it cannot fight the RViz capture stream unless deliberately remapped. Its frame is split into J1 top view, J2-J4 side view, and J5 roll view.
+- RViz capture is a real frame stream into Qt, but it is not true RViz embedding. If this path is brittle on Wayland or multi-monitor setups, replace the main embedded path with MuJoCo/offscreen rendering before considering a C++ bridge.
 
 Joint command limits:
 
