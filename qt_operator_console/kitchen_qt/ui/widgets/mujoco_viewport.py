@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget
 
@@ -30,8 +30,10 @@ class MujocoViewport(QWidget):
         self.model: Any | None = None
         self.data: Any | None = None
         self.renderer: Any | None = None
+        self.camera: Any | None = None
         self.status = ""
         self.display_mode = "3d"
+        self.last_mouse_pos = None
         self.joints = {joint: 0.0 for joint in JOINTS}
         self.joint_qpos_addr: dict[str, int] = {}
 
@@ -41,6 +43,8 @@ class MujocoViewport(QWidget):
         self.image_label.setMinimumSize(320, 320)
         self.image_label.setScaledContents(False)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.image_label.installEventFilter(self)
+        self.image_label.setMouseTracking(True)
 
         self.status_label = QLabel()
         self.status_label.setObjectName("Pill")
@@ -125,6 +129,11 @@ class MujocoViewport(QWidget):
             self.model = mujoco.MjModel.from_xml_path(self.mjcf_path)
             self.data = mujoco.MjData(self.model)
             self.renderer = mujoco.Renderer(self.model, height=self.render_height, width=self.render_width)
+            self.camera = mujoco.MjvCamera()
+            self.camera.azimuth = 135.0
+            self.camera.elevation = -25.0
+            self.camera.distance = 2.0
+            self.camera.lookat[:] = [0.0, 0.0, 0.10]
             self._map_joints()
             mapped = ", ".join(sorted(self.joint_qpos_addr)) or "no matching joints"
             self.status = f"MuJoCo active: {Path(self.mjcf_path).name}; mapped {mapped}"
@@ -150,7 +159,7 @@ class MujocoViewport(QWidget):
                 self.data.qpos[addr] = self.joints[joint]
         try:
             self.mujoco.mj_forward(self.model, self.data)
-            self.renderer.update_scene(self.data)
+            self.renderer.update_scene(self.data, camera=self.camera)
             pixels = self.renderer.render()
         except Exception as exc:  # noqa: BLE001
             self.status_label.setText(f"MuJoCo render failed: {exc}")
@@ -165,10 +174,40 @@ class MujocoViewport(QWidget):
             Qt.SmoothTransformation,
         )
         self.image_label.setPixmap(pixmap)
-        self.status_label.setText(self.status)
+        self.status_label.setText(self._camera_status())
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
         super().resizeEvent(event)
         width = self.image_label.width()
         if width > 0 and self.image_label.height() != width:
             self.image_label.setFixedHeight(width)
+
+    def eventFilter(self, source, event) -> bool:  # noqa: N802 - Qt API
+        if source is not self.image_label or self.camera is None:
+            return super().eventFilter(source, event)
+        if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            self.last_mouse_pos = event.position()
+            return True
+        if event.type() == QEvent.MouseMove and self.last_mouse_pos is not None:
+            current = event.position()
+            delta = current - self.last_mouse_pos
+            self.camera.azimuth += float(delta.x()) * 0.35
+            self.camera.elevation = max(-89.0, min(20.0, self.camera.elevation + float(delta.y()) * 0.25))
+            self.last_mouse_pos = current
+            return True
+        if event.type() == QEvent.MouseButtonRelease:
+            self.last_mouse_pos = None
+            return True
+        if event.type() == QEvent.Wheel:
+            scale = 0.9 if event.angleDelta().y() > 0 else 1.1
+            self.camera.distance = max(0.45, min(5.0, self.camera.distance * scale))
+            return True
+        return super().eventFilter(source, event)
+
+    def _camera_status(self) -> str:
+        if self.camera is None:
+            return self.status
+        return (
+            f"{self.status}; cam az={self.camera.azimuth:.0f} "
+            f"el={self.camera.elevation:.0f} d={self.camera.distance:.2f}"
+        )
