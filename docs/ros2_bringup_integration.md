@@ -193,7 +193,7 @@ ros2 launch remibot_bringup kitchen_arm_system.launch.py \
   start_joint4_mapper:=false
 ```
 
-By default, `joy_arm_control.py` is not started from the ROS2 launch because it continuously sends trajectory goals and can compete with GUI waypoint preview. Enable it only when testing joystick authority:
+By default, `joy_arm_control.py` is not started from the ROS2 launch or wrapper because it continuously sends trajectory goals and can compete with GUI waypoint preview. Enable it only when testing joystick authority:
 
 ```bash
 ros2 launch remibot_bringup kitchen_arm_system.launch.py \
@@ -206,7 +206,13 @@ Run full system:
 ~/kitchen_arm_ws/start_remibot_system.sh
 ```
 
-The full-system wrapper starts `joy_arm_control.py` explicitly for hardware/joystick sessions. For GUI-only simulation preview, prefer the launch command above with `start_joy_control` left at its default `false`.
+To start the full-system wrapper with joystick command output enabled:
+
+```bash
+START_JOY_CONTROL=true ~/kitchen_arm_ws/start_remibot_system.sh
+```
+
+For GUI/RViz simulation preview, keep joystick control output off.
 
 In the GUI, use `Use GUI` or `Use Joystick` to mark the intended control authority. When joystick authority is active, GUI slider and waypoint commands are blocked. This is a UI-level guard; the long-term control authority should be enforced by a ROS2 arbitration/lifecycle node.
 
@@ -224,7 +230,31 @@ The Workbench now contains a Qt image widget for rendered frames. This does not 
 
 To test the GUI-only pipeline, launch the GUI in mock mode; it emits a synthetic arm preview frame.
 
-Implemented ROS2 renderer:
+Implemented RViz capture renderer:
+
+```bash
+ros2 run remibot_console rviz_capture_renderer
+```
+
+This node captures the RViz window with Qt screen capture and publishes:
+
+```text
+/remibot/visualization/image
+```
+
+The bringup launch starts RViz capture by default:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py
+```
+
+Disable it when testing another image source:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py start_rviz_capture:=false
+```
+
+Fallback 2D renderer:
 
 ```bash
 ros2 run remibot_console visualization_renderer
@@ -246,16 +276,10 @@ ros2 topic echo --once /remibot/visualization/image --field encoding
 
 Expected values are `540`, `960`, and `rgb8`.
 
-The bringup launch starts this renderer by default:
+Start the fallback renderer from bringup:
 
 ```bash
-ros2 launch remibot_bringup kitchen_arm_system.launch.py
+ros2 launch remibot_bringup kitchen_arm_system.launch.py start_rviz_capture:=false start_renderer:=true
 ```
 
-Disable it when testing another renderer source:
-
-```bash
-ros2 launch remibot_bringup kitchen_arm_system.launch.py start_renderer:=false
-```
-
-This is still not true RViz embedding. It proves the image-stream contract. The next renderer can capture RViz/offscreen simulation frames or replace this Python preview with a C++ Qt/RViz bridge.
+This is still not true RViz embedding. It is a real RViz window frame stream into Qt. If this capture path is too brittle on Wayland or multi-monitor setups, the next step is a C++ RViz/offscreen renderer or Qt/RViz bridge.

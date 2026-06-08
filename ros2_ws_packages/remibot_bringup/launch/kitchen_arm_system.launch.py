@@ -108,6 +108,17 @@ def _system_actions(context, *_args, **_kwargs):
             ],
         ),
         TimerAction(
+            period=6.0,
+            actions=[
+                Node(
+                    package="remibot_console",
+                    executable="rviz_capture_renderer",
+                    output="screen",
+                    condition=IfCondition(LaunchConfiguration("start_rviz_capture")),
+                )
+            ],
+        ),
+        TimerAction(
             period=2.0,
             actions=[
                 Node(
@@ -135,7 +146,8 @@ def generate_launch_description():
             DeclareLaunchArgument("start_joint4_mapper", default_value="true"),
             DeclareLaunchArgument("start_joy_control", default_value="false"),
             DeclareLaunchArgument("start_scene", default_value="true"),
-            DeclareLaunchArgument("start_renderer", default_value="true"),
+            DeclareLaunchArgument("start_renderer", default_value="false"),
+            DeclareLaunchArgument("start_rviz_capture", default_value="true"),
             DeclareLaunchArgument("start_gui", default_value="true"),
             OpaqueFunction(function=_system_actions),
         ]

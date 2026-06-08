@@ -309,6 +309,12 @@ class Ros2Backend(ArmBackend):
             or self.joint_state_pub is None
         ):
             return
+        publisher_count = self.node.count_publishers("/joint_states")
+        if publisher_count > 1:
+            self.preview_timer.stop()
+            self.state.log("Direct preview stopped because another /joint_states publisher is active", "WARN")
+            self.state_changed.emit()
+            return
         msg = self.RosJointState()
         msg.header.stamp = self.node.get_clock().now().to_msg()
         msg.name = [ROS_JOINT_NAMES[joint] for joint in JOINTS]

@@ -342,8 +342,9 @@ Initial image-stream implementation:
   - `/camera/image_raw`
   - `/remibot/visualization/image/compressed`
   - `/rviz/rendered_image/compressed`
-- `remibot_console visualization_renderer` now publishes the first ROS2 image stream on `/remibot/visualization/image`.
-- The first renderer is a lightweight 2D joint-state preview, not true RViz embedding. It proves the frame-stream contract before replacing the renderer with RViz/offscreen simulation capture or a C++ bridge.
+- `remibot_console rviz_capture_renderer` captures the real RViz window and publishes `/remibot/visualization/image`.
+- `remibot_console visualization_renderer` remains as a lightweight 2D joint-state fallback.
+- RViz capture is a real frame stream into Qt, but it is not true RViz embedding. If this path is brittle on Wayland or multi-monitor setups, replace it with RViz/offscreen simulation capture or a C++ bridge.
 
 Joint command limits:
 

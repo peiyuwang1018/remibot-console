@@ -56,16 +56,22 @@ source install/setup.bash
 ros2 launch remibot_bringup kitchen_arm_system.launch.py
 ```
 
-The bringup starts a lightweight visualization frame renderer by default. It subscribes `/joint_states`, publishes `/remibot/visualization/image`, and the Qt Workbench displays that stream in the center viewport. You can run it alone with:
+The bringup starts an RViz window capture renderer by default. It captures the RViz window, publishes `/remibot/visualization/image`, and the Qt Workbench displays that stream in the center viewport. You can run it alone with:
+
+```bash
+ros2 run remibot_console rviz_capture_renderer
+```
+
+Disable RViz capture when testing another image source:
+
+```bash
+ros2 launch remibot_bringup kitchen_arm_system.launch.py start_rviz_capture:=false
+```
+
+A lightweight 2D joint-state renderer is still available as a fallback:
 
 ```bash
 ros2 run remibot_console visualization_renderer
-```
-
-Disable it when testing another image source:
-
-```bash
-ros2 launch remibot_bringup kitchen_arm_system.launch.py start_renderer:=false
 ```
 
 For a one-command launch after building:
