@@ -263,10 +263,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.signal_combo)
 
     def _build_scope_visualization_panel(self, layout: QVBoxLayout) -> None:
-        layout.setAlignment(Qt.AlignTop)
         self.signal_plot = MultiLinePlot()
-        self.signal_plot.setFixedHeight(320)
-        layout.addWidget(self.signal_plot, 0)
+        self.signal_plot.setMinimumHeight(280)
+        self.signal_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.addWidget(self.signal_plot, 1)
         mode_row = QHBoxLayout()
         mode_row.addWidget(QLabel("View"))
         self.visualization_mode = QComboBox()
@@ -277,7 +277,6 @@ class MainWindow(QMainWindow):
         layout.addLayout(mode_row)
         self.visualization_frame = MujocoViewport(self.mjcf_path)
         layout.addWidget(self.visualization_frame, 0)
-        layout.addStretch(1)
         self._set_visualization_mode(self.visualization_mode.currentText())
 
     def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:
