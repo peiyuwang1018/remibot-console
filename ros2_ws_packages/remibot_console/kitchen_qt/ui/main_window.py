@@ -105,7 +105,6 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.addTab(self._workbench_tab(), "Workbench")
         self.tabs.addTab(self._tuning_tab(), "Motors and Tuning")
-        self.tabs.addTab(self._visualization_tab(), "Visualization")
         self.tabs.addTab(self._logs_tab(), "Logs")
         layout.addWidget(self.tabs, 1)
         self.setCentralWidget(root)
@@ -266,8 +265,7 @@ class MainWindow(QMainWindow):
     def _build_scope_visualization_panel(self, layout: QVBoxLayout) -> None:
         layout.setAlignment(Qt.AlignTop)
         self.signal_plot = MultiLinePlot()
-        self.signal_plot.setMinimumHeight(260)
-        self.signal_plot.setMaximumHeight(340)
+        self.signal_plot.setFixedHeight(320)
         layout.addWidget(self.signal_plot, 0)
         mode_row = QHBoxLayout()
         mode_row.addWidget(QLabel("View"))
@@ -278,7 +276,8 @@ class MainWindow(QMainWindow):
         mode_row.addStretch(1)
         layout.addLayout(mode_row)
         self.visualization_frame = MujocoViewport(self.mjcf_path)
-        layout.addWidget(self.visualization_frame, 1)
+        layout.addWidget(self.visualization_frame, 0)
+        layout.addStretch(1)
         self._set_visualization_mode(self.visualization_mode.currentText())
 
     def _build_manual_operation_panel(self, layout: QVBoxLayout) -> None:

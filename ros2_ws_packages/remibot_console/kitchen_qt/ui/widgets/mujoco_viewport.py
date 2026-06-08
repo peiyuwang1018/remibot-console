@@ -19,8 +19,8 @@ class MujocoViewport(QWidget):
 
     def __init__(self, mjcf_path: str | None, width: int = 960, height: int = 540) -> None:
         super().__init__()
-        self.setMinimumHeight(240)
-        self.setMaximumHeight(430)
+        self.setMinimumHeight(220)
+        self.setMaximumHeight(380)
         self.mjcf_path = str(Path(mjcf_path).expanduser()) if mjcf_path else None
         self.render_width = width
         self.render_height = height
