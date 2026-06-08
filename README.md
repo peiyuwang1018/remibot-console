@@ -64,8 +64,10 @@ python -m pip install -r requirements.txt
 Install MuJoCo support when using the embedded 3D viewport:
 
 ```bash
-python -m pip install -r requirements-mujoco.txt
+/usr/bin/python3 -m pip install --user -r requirements-mujoco.txt
 ```
+
+ROS2 launch starts the installed console with `/usr/bin/python3`, so install MuJoCo into that interpreter rather than only into a Conda environment.
 
 Run the mock console:
 

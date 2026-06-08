@@ -45,7 +45,7 @@ python qt_operator_console/run_qt_console.py --backend mock --data-dir data
 Optional MuJoCo viewport:
 
 ```bash
-python -m pip install -r requirements-mujoco.txt
+/usr/bin/python3 -m pip install --user -r requirements-mujoco.txt
 python qt_operator_console/run_qt_console.py --backend mock --mjcf /path/to/remibot.xml
 ```
 
