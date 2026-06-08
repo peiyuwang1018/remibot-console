@@ -343,7 +343,7 @@ Initial image-stream implementation:
   - `/remibot/visualization/image/compressed`
   - `/rviz/rendered_image/compressed`
 - `remibot_console rviz_capture_renderer` captures the real RViz window and publishes `/remibot/visualization/image`.
-- `remibot_console visualization_renderer` remains as a lightweight 2D joint-state fallback.
+- `remibot_console visualization_renderer` remains as a lightweight 2D joint-state fallback and publishes `/remibot/visualization/fallback_image` by default, so it cannot fight the RViz capture stream unless deliberately remapped.
 - RViz capture is a real frame stream into Qt, but it is not true RViz embedding. If this path is brittle on Wayland or multi-monitor setups, replace it with RViz/offscreen simulation capture or a C++ bridge.
 
 Joint command limits:

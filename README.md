@@ -74,6 +74,13 @@ A lightweight 2D joint-state renderer is still available as a fallback:
 ros2 run remibot_console visualization_renderer
 ```
 
+It publishes `/remibot/visualization/fallback_image` by default so it does not fight the RViz capture stream. To deliberately show it in the GUI, run:
+
+```bash
+ros2 run remibot_console visualization_renderer --ros-args \
+  -p image_topic:=/remibot/visualization/image
+```
+
 For a one-command launch after building:
 
 ```bash

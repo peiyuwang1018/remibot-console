@@ -72,7 +72,7 @@ class Canvas:
 class ConsoleVisualizationRenderer(Node):
     def __init__(self) -> None:
         super().__init__("remibot_visualization_renderer")
-        self.declare_parameter("image_topic", "/remibot/visualization/image")
+        self.declare_parameter("image_topic", "/remibot/visualization/fallback_image")
         self.declare_parameter("joint_topic", "/joint_states")
         self.declare_parameter("width", 960)
         self.declare_parameter("height", 540)

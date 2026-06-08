@@ -260,18 +260,18 @@ Fallback 2D renderer:
 ros2 run remibot_console visualization_renderer
 ```
 
-This lightweight node subscribes `/joint_states`, draws a simple 2D arm preview, and publishes:
+This lightweight node subscribes `/joint_states`, draws a simple 2D arm preview, and publishes to a separate fallback topic by default:
 
 ```text
-/remibot/visualization/image
+/remibot/visualization/fallback_image
 ```
 
-Verify the image stream:
+Verify the fallback image stream:
 
 ```bash
-ros2 topic echo --once /remibot/visualization/image --field height
-ros2 topic echo --once /remibot/visualization/image --field width
-ros2 topic echo --once /remibot/visualization/image --field encoding
+ros2 topic echo --once /remibot/visualization/fallback_image --field height
+ros2 topic echo --once /remibot/visualization/fallback_image --field width
+ros2 topic echo --once /remibot/visualization/fallback_image --field encoding
 ```
 
 Expected values are `540`, `960`, and `rgb8`.
@@ -279,7 +279,26 @@ Expected values are `540`, `960`, and `rgb8`.
 Start the fallback renderer from bringup:
 
 ```bash
-ros2 launch remibot_bringup kitchen_arm_system.launch.py start_rviz_capture:=false start_renderer:=true
+ros2 launch remibot_bringup kitchen_arm_system.launch.py \
+  start_rviz_capture:=false \
+  start_renderer:=true
+```
+
+To intentionally show the fallback renderer in the GUI viewport, remap its output to the main image topic:
+
+```bash
+ros2 run remibot_console visualization_renderer --ros-args \
+  -p image_topic:=/remibot/visualization/image
 ```
 
 This is still not true RViz embedding. It is a real RViz window frame stream into Qt. If this capture path is too brittle on Wayland or multi-monitor setups, the next step is a C++ RViz/offscreen renderer or Qt/RViz bridge.
+
+## Command Source Contention Notes
+
+The ROS2 backend no longer publishes preview `/joint_states` directly and no longer mutates GUI joint state optimistically when a command is sent. Joint state shown in the GUI should come from `/joint_states` only. This prevents the GUI from toggling between "requested target" and "actual controller state".
+
+The wrapper also keeps `joy_arm_control.py` disabled by default. Enable it only for joystick-command sessions:
+
+```bash
+START_JOY_CONTROL=true ~/kitchen_arm_ws/start_remibot_system.sh
+```

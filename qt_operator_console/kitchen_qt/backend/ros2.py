@@ -26,7 +26,6 @@ class Ros2Backend(ArmBackend):
         self.node = None
         self.executor = None
         self.executor_thread: Thread | None = None
-        self.joint_state_pub = None
         self.trajectory_client = None
         self.image_subs = []
         self.compressed_image_subs = []
@@ -69,7 +68,6 @@ class Ros2Backend(ArmBackend):
             rclpy.init(args=None)
             self._owns_rclpy = True
         self.node = rclpy.create_node("remibot_console_backend")
-        self.joint_state_pub = self.node.create_publisher(RosJointState, "/joint_states", 10)
         self.joy_sub = self.node.create_subscription(Joy, "/joy", self._joy_callback, 10)
         self.joint_state_sub = self.node.create_subscription(RosJointState, "/joint_states", self._joint_state_callback, 10)
         self.image_subs = [
@@ -90,7 +88,7 @@ class Ros2Backend(ArmBackend):
             self.state.hardware = "ROS graph"
         self.available = True
         self.state.set_backend(self.name, True)
-        self.state.log("ROS2 backend started; GUI preview publishes /joint_states")
+        self.state.log("ROS2 backend started; GUI commands use trajectory action when available")
         self.state.log(
             "Visualization image stream listening on: "
             + ", ".join(VISUALIZATION_IMAGE_TOPICS + VISUALIZATION_COMPRESSED_IMAGE_TOPICS)
@@ -168,19 +166,15 @@ class Ros2Backend(ArmBackend):
 
     def _command_joint_targets(self, targets_rad: dict[str, float], duration_s: float, action_label: str) -> None:
         with self.state.lock:
-            for joint, target in targets_rad.items():
-                if joint in self.state.joints:
-                    old = self.state.joints[joint]
-                    self.state.set_joint(
-                        joint,
-                        JointState(old.current, target, 0.0, old.temperature, old.voltage, old.fault),
-                    )
             self.state.control_source = "GUI"
-            ordered_positions = [self.state.joints[joint].position for joint in JOINTS]
+            ordered_positions = [
+                float(targets_rad.get(joint, self.state.joints[joint].position))
+                for joint in JOINTS
+            ]
             self.preview_positions = [float(value) for value in ordered_positions]
 
-        if not self.available or self.node is None or self.joint_state_pub is None:
-            self.state.log("ROS2 preview unavailable; pose stored in console state only", "WARN")
+        if not self.available or self.node is None:
+            self.state.log("ROS2 preview unavailable; command was not sent", "WARN")
             self.state_changed.emit()
             return
 
@@ -190,19 +184,11 @@ class Ros2Backend(ArmBackend):
             self.state_changed.emit()
             return
 
-        publisher_count = self.node.count_publishers("/joint_states") if self.node is not None else 0
-        if publisher_count > 1:
-            self.preview_timer.stop()
-            self.state.log(
-                f"No trajectory controller found and {publisher_count - 1} external /joint_states publisher(s) exist; direct preview blocked to avoid flicker",
-                "WARN",
-            )
-            self.state_changed.emit()
-            return
-        self._publish_preview_joint_state()
-        if not self.preview_timer.isActive():
-            self.preview_timer.start()
-        self.state.log(f"No trajectory controller found; {action_label.lower()} joint state streaming to /joint_states", "WARN")
+        self.preview_timer.stop()
+        self.state.log(
+            f"No trajectory controller found; {action_label.lower()} not sent. Direct /joint_states preview is disabled to avoid state contention.",
+            "WARN",
+        )
         self.state_changed.emit()
 
     def _send_joint_trajectory(self, duration_s: float) -> bool:
@@ -302,26 +288,7 @@ class Ros2Backend(ArmBackend):
         return None
 
     def _publish_preview_joint_state(self) -> None:
-        if (
-            self.preview_positions is None
-            or not self.available
-            or self.node is None
-            or self.joint_state_pub is None
-        ):
-            return
-        publisher_count = self.node.count_publishers("/joint_states")
-        if publisher_count > 1:
-            self.preview_timer.stop()
-            self.state.log("Direct preview stopped because another /joint_states publisher is active", "WARN")
-            self.state_changed.emit()
-            return
-        msg = self.RosJointState()
-        msg.header.stamp = self.node.get_clock().now().to_msg()
-        msg.name = [ROS_JOINT_NAMES[joint] for joint in JOINTS]
-        msg.position = list(self.preview_positions)
-        msg.velocity = [0.0] * len(JOINTS)
-        msg.effort = [0.0] * len(JOINTS)
-        self.joint_state_pub.publish(msg)
+        self.preview_timer.stop()
 
     def write_pid(self, joint: str, kp: float, ki: float, kd: float) -> dict[str, Any]:
         self._todo(f"set PID for {joint}")
