@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QRadioButton,
+    QSizePolicy,
+    QScrollArea,
     QSlider,
     QTabWidget,
     QTableWidget,
@@ -107,6 +109,16 @@ class MainWindow(QMainWindow):
             layout.addWidget(label)
         return frame, layout
 
+    def _scroll_column(self, frame: QFrame, min_width: int) -> QScrollArea:
+        scroll = QScrollArea()
+        scroll.setWidget(frame)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setMinimumWidth(min_width)
+        scroll.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        return scroll
+
     def _build_top_bar(self) -> QFrame:
         bar = QFrame()
         bar.setObjectName("TopBar")
@@ -115,17 +127,19 @@ class MainWindow(QMainWindow):
         layout.setSpacing(12)
 
         self.status_label = self._pill("READY")
-        self.world_label = self._pill("World: SimulationOnly")
-        self.hardware_label = self._pill("Hardware: Disconnected")
-        self.homing_state_label = self._pill("Homing: pending")
-        self.authority_label = self._pill("Authority: GUI")
-        self.backend_label = self._pill("mock disconnected")
+        self.world_label = self._pill("World Sim")
+        self.hardware_label = self._pill("HW Off")
+        self.homing_state_label = self._pill("Home --")
+        self.authority_label = self._pill("Auth GUI")
+        self.backend_label = self._pill("mock off")
         self.contact_label = self._pill("No Contact")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(CONTROL_MODES)
+        self.mode_combo.setMaximumWidth(128)
         self.mode_combo.currentTextChanged.connect(self.backend.request_mode)
         self.tool_combo = QComboBox()
         self.tool_combo.addItems(TOOLS)
+        self.tool_combo.setMaximumWidth(104)
         self.tool_combo.currentTextChanged.connect(self._set_tool)
         self.theme_button = QPushButton("Light")
         self.theme_button.clicked.connect(self._toggle_theme)
@@ -133,19 +147,19 @@ class MainWindow(QMainWindow):
         estop.setObjectName("Danger")
         estop.clicked.connect(lambda: self.backend.set_estop(not self.state.snapshot()["estop"]))
 
-        for text, widget in [
-            ("World", self.world_label),
-            ("Hardware", self.hardware_label),
-            ("Homing", self.homing_state_label),
-            ("Backend", self.backend_label),
-            ("Mode", self.mode_combo),
-            ("Authority", self.authority_label),
-            ("Tool", self.tool_combo),
-            ("Contact", self.contact_label),
+        for widget in [
+            self.world_label,
+            self.hardware_label,
+            self.homing_state_label,
+            self.backend_label,
+            self.mode_combo,
+            self.authority_label,
+            self.tool_combo,
+            self.contact_label,
         ]:
-            label = QLabel(text)
-            label.setObjectName("Muted")
-            layout.addWidget(label)
+            widget.setMinimumWidth(0)
+            widget.setMaximumWidth(170)
+            widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             layout.addWidget(widget)
         layout.addStretch(1)
         layout.addWidget(self.theme_button)
@@ -165,39 +179,65 @@ class MainWindow(QMainWindow):
     def _state_color(self, dark: dict[str, str], light: dict[str, str], key: str, default: str = "#e6ebf4") -> str:
         return (dark if self.dark_theme else light).get(key, default)
 
+    def _short_world(self, value: str) -> str:
+        return {
+            "SimulationOnly": "Sim",
+            "HardwareConnected": "HW Conn",
+            "HardwareLive": "HW Live",
+            "HybridMirror": "Hybrid",
+        }.get(value, value)
+
+    def _short_hardware(self, value: str) -> str:
+        return {
+            "Disconnected": "Off",
+            "Mock": "Mock",
+            "ROS graph": "ROS",
+            "Connected": "On",
+            "Fault": "Fault",
+        }.get(value, value)
+
+    def _short_contact(self, value: str) -> str:
+        return {"No Contact": "Free"}.get(value, value)
+
     def _workbench_tab(self) -> QWidget:
         page = QWidget()
         layout = QHBoxLayout(page)
 
         left, left_layout = self._panel()
-        left.setMinimumWidth(440)
+        left.setMinimumWidth(0)
         self._build_joint_command_panel(left_layout)
         self._build_joint_telemetry_panel(left_layout)
         self._build_manual_operation_panel(left_layout)
+        left_scroll = self._scroll_column(left, 360)
 
         center, center_layout = self._panel("Scope And Visualization")
+        center.setMinimumWidth(420)
+        center.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._build_scope_visualization_panel(center_layout)
 
         right, right_layout = self._panel("Workflow")
-        right.setMinimumWidth(360)
+        right.setMinimumWidth(0)
         self._build_waypoint_panel(right_layout)
         right_layout.addSpacing(8)
         self._build_homing_summary_panel(right_layout)
         right_layout.addSpacing(8)
         self._build_tool_summary_panel(right_layout)
+        right_scroll = self._scroll_column(right, 330)
 
-        layout.addWidget(left, 0)
-        layout.addWidget(center, 1)
-        layout.addWidget(right, 0)
+        layout.addWidget(left_scroll)
+        layout.addWidget(center)
+        layout.addWidget(right_scroll)
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 4)
+        layout.setStretch(2, 1)
         return page
 
     def _build_joint_telemetry_panel(self, layout: QVBoxLayout) -> None:
         layout.addWidget(self._subhead("Joint State"))
         self.joint_table = QTableWidget(len(JOINTS), 6)
-        self.joint_table.setHorizontalHeaderLabels(["Joint", "I (A)", "q (rad)", "dq (rad/s)", "Temp", "Fault"])
-        self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        for col, width in enumerate([56, 78, 86, 92, 70, 62]):
-            self.joint_table.setColumnWidth(col, width)
+        self.joint_table.setHorizontalHeaderLabels(["Joint", "I", "q", "dq", "Temp", "Fault"])
+        self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.joint_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.joint_table.verticalHeader().setVisible(False)
         self.joint_table.setAlternatingRowColors(True)
         self.joint_table.setMinimumHeight(190)
@@ -626,21 +666,21 @@ class MainWindow(QMainWindow):
         snap = self.state.snapshot()
         self.status_label.setText(snap["status"])
         self.status_label.setStyleSheet(f"color: {self._state_color(STATUS_COLORS, LIGHT_STATUS_COLORS, snap['status'])};")
-        self.world_label.setText(f"World: {snap['world']}")
+        self.world_label.setText(f"World {self._short_world(snap['world'])}")
         self.world_label.setStyleSheet(f"color: {self._state_color(WORLD_COLORS, LIGHT_WORLD_COLORS, snap['world'])};")
-        self.hardware_label.setText(f"Hardware: {snap['hardware']}")
+        self.hardware_label.setText(f"HW {self._short_hardware(snap['hardware'])}")
         self.hardware_label.setStyleSheet(f"color: {self._state_color(HARDWARE_COLORS, LIGHT_HARDWARE_COLORS, snap['hardware'])};")
         homing_text = "homed" if snap["homed"] else ("homing" if snap["homing_active"] else "not homed")
-        self.homing_state_label.setText(f"Homing: {homing_text}")
+        self.homing_state_label.setText(f"Home {homing_text}")
         homing_color = ("#66c9a4" if self.dark_theme else "#047857") if snap["homed"] else (("#e8b955" if self.dark_theme else "#9a6700") if snap["homing_active"] else ("#8c99ad" if self.dark_theme else "#667085"))
         self.homing_state_label.setStyleSheet(f"color: {homing_color};")
         if hasattr(self, "workbench_homing_summary"):
             self.workbench_homing_summary.setText(homing_text)
             self.workbench_homing_summary.setStyleSheet(f"color: {homing_color};")
-        self.authority_label.setText(f"Authority: {snap['control_source']}")
+        self.authority_label.setText(f"Auth {snap['control_source']}")
         self.authority_label.setStyleSheet(f"color: {self._state_color(AUTHORITY_COLORS, LIGHT_AUTHORITY_COLORS, snap['control_source'])};")
-        self.backend_label.setText(f"{snap['backend']} {'connected' if snap['connected'] else 'disconnected'}")
-        self.contact_label.setText(snap["contact"])
+        self.backend_label.setText(f"{snap['backend']} {'ok' if snap['connected'] else 'off'}")
+        self.contact_label.setText(self._short_contact(snap["contact"]))
         self.contact_label.setStyleSheet(f"color: {self._state_color(CONTACT_COLORS, LIGHT_CONTACT_COLORS, snap['contact'])};")
         joystick_text = "Joystick: active" if snap["joystick_active"] else ("Joystick: connected" if snap["joystick_connected"] else "Joystick: not connected")
         self.joystick_label.setText(joystick_text)
